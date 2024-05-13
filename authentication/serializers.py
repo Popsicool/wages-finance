@@ -125,30 +125,25 @@ class LoginSerializer(serializers.ModelSerializer):
         max_length=255, min_length=3, read_only=True)
     role = serializers.CharField(
         max_length=255, min_length=3, read_only=True)
-    stages_of_profile_completion = serializers.JSONField(read_only=True)
-    is_staff = serializers.BooleanField(read_only= True)
 
     class Meta:
         model = User
-        fields = ['id','email', 'password', 'tokens', 'firstname', 'lastname', 'role', 'stages_of_profile_completion', 'is_staff']
+        fields = ['id','email', 'password', 'tokens', 'firstname', 'lastname', 'role']
 
     def validate(self, attrs):
         email = attrs.get('email', '')
         password = attrs.get('password', '')
 
         user = auth.authenticate(email=email, password=password)
-        valid_user = User.objects.filter(email = email)
-        if len(valid_user) > 0:
-            check_suspended = valid_user[0]
-            if not check_suspended.is_active:
+        valid_user = User.objects.filter(email = email).first()
+        if valid_user:
+            if not valid_user.is_active:
                 raise AuthenticationFailed('account disabled, contact admin')
         if not user:
             raise AuthenticationFailed('invalid credentials, try again')
         if not user.is_verified:
             raise AuthenticationFailed('please verify your email')
         role = user.role
-        if role == "1":
-            role = "SHAREHOLDER"
         return {
             'id': user.id,
             'email': user.email,
@@ -156,8 +151,6 @@ class LoginSerializer(serializers.ModelSerializer):
             'lastname': user.lastname,
             'role': role,
             'tokens': user.tokens,
-            'stages_of_profile_completion': user.stages_of_profile_completion,
-            'is_staff': user.is_staff
         }
 
 
