@@ -166,13 +166,12 @@ class RequestPasswordResetEmailSerializer(serializers.Serializer):
     def validate(self, attrs):
         email = attrs.get('email', '')
         redirect_url = attrs.get("redirect_url", "")
-        users = User.objects.filter(email=email)
+        user = User.objects.filter(email=email).first()
 
-        if len(users) <= 0:
+        if not user:
             # if user account not found, don't throw error
             return False
 
-        user = users[0]
 
         # encode userId as base64 uuid
         uid64 = urlsafe_base64_encode(smart_bytes(user.id))

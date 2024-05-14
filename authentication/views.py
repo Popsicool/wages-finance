@@ -133,9 +133,9 @@ class RequestPasswordResetEmail(generics.GenericAPIView):
 
         # serializer validated_data retuns custom "False" value if encounters error
         if serializer.validated_data:
-            redirect_url = serializer.validated_data['redirect_url']
+            # redirect_url = serializer.validated_data['redirect_url']
             # send mail
-            SendMail.send_password_reset_mail(serializer.data, request=request, redirect_url= redirect_url)
+            SendMail.send_password_reset_mail(serializer.data)
 
         return Response({
             'message': 'we have sent you a link to reset your password'
@@ -147,24 +147,24 @@ class CustomRedirect(HttpResponsePermanentRedirect):
     allowed_schemes = ['http', 'https']
 
 
-class PasswordTokenCheckAPI(generics.GenericAPIView):
-    serializer_class = SetNewPasswordSerializer
+# class PasswordTokenCheckAPI(generics.GenericAPIView):
+#     serializer_class = SetNewPasswordSerializer
 
-    def get(self, request, uid64, token):
-        try:
-            frontend_url = config('FRONTEND_URL', '')
-            redirect_url = f'{frontend_url}?reset=true'
-            user_id = smart_str(urlsafe_base64_decode(uid64))
-            user = User.objects.get(id=user_id)
+#     def get(self, request, uid64, token):
+#         try:
+#             frontend_url = config('FRONTEND_URL', '')
+#             redirect_url = f'{frontend_url}?reset=true'
+#             user_id = smart_str(urlsafe_base64_decode(uid64))
+#             user = User.objects.get(id=user_id)
 
-            if not PasswordResetTokenGenerator().check_token(user, token):
-                return HttpResponse('<p>Invalid Token. Request a new one</p>', status=400)
+#             if not PasswordResetTokenGenerator().check_token(user, token):
+#                 return HttpResponse('<p>Invalid Token. Request a new one</p>', status=400)
 
-            if redirect_url and len(redirect_url) > 3:
-                return CustomRedirect(redirect_url + f'&token_valid=True&uid64={uid64}&token={token}')
-            return HttpResponse('<p>Contact Admin. Page Not found</p>', status=400)
-        except Exception:
-            return HttpResponse('<p>Invalid Token. Request a new one</p>', status=400)
+#             if redirect_url and len(redirect_url) > 3:
+#                 return CustomRedirect(redirect_url + f'&token_valid=True&uid64={uid64}&token={token}')
+#             return HttpResponse('<p>Contact Admin. Page Not found</p>', status=400)
+#         except Exception:
+#             return HttpResponse('<p>Invalid Token. Request a new one</p>', status=400)
 
 
 class SetNewPasswordAPIView(generics.GenericAPIView):

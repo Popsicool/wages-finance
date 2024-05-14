@@ -9,7 +9,11 @@ class SendMail:
         send_email.send()
     
     @staticmethod
-    def send_invite_mail(data):
+    def send_invite_mail(info):
+        data = {}
+        data["subject"] = "Admin Invitation"
+        data["body"] = f'Your Login details is\n\nEmail: {info["email"]}\nPassowrd: {info["password"]}'
+        data["user"] = info["email"]
         SendMail.send_email(data)
     
     @staticmethod
@@ -26,5 +30,11 @@ class SendMail:
         SendMail.send_email(data)
 
     @staticmethod
-    def send_password_reset_mail(data, request, redirect_url):
+    def send_password_reset_mail(info):
+        data = {}
+        message = f"Please use the link below to reset your password {info['redirect_url']}?token={info['token']}&uid64={info['uid64']}"
+        data['body'] = message
+        data["user"] = info["email"]
+        data["subject"] = "Reset password email"
+        data["redirect_url"] = info["redirect_url"]
         SendMail.send_email(data)
