@@ -61,7 +61,6 @@ class SignupSerializer(serializers.ModelSerializer):
         validated_data["referal_code"] = random_string.upper()
         return User.objects.create_user(**validated_data)
 
-
 class EmailVerificationSerializer(serializers.ModelSerializer):
     token = serializers.CharField(max_length=6, min_length=6, write_only=True)
     email = serializers.EmailField(write_only=True)
@@ -116,7 +115,7 @@ class ResendVerificationMailSerializer(serializers.Serializer):
 
 
 class LoginSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(max_length=255, min_length=3)
+    email = serializers.CharField(max_length=255, min_length=3)
     password = serializers.CharField(
         max_length=68, min_length=8, write_only=True)
     firstname = serializers.CharField(
@@ -133,16 +132,21 @@ class LoginSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         email = attrs.get('email', '')
         password = attrs.get('password', '')
-
-        user = auth.authenticate(email=email, password=password)
         valid_user = User.objects.filter(email = email).first()
-        if valid_user:
-            if not valid_user.is_active:
-                raise AuthenticationFailed('account disabled, contact admin')
+        if not valid_user:
+            valid_user = User.objects.filter(phone = email).first()
+            if valid_user:
+                email = valid_user.email
+        if not valid_user:
+            raise AuthenticationFailed('invalid credentials, try again')
+        if not valid_user.is_active:
+            raise AuthenticationFailed('account disabled, contact admin')
+        user = auth.authenticate(email=email, password=password)
         if not user:
             raise AuthenticationFailed('invalid credentials, try again')
         if not user.is_verified:
-            raise AuthenticationFailed('please verify your email')
+            raise AuthenticationFailed('please verify your account')
+        
         role = user.role
         return {
             'id': user.id,

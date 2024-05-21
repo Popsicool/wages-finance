@@ -109,3 +109,44 @@ class EmailVerification(models.Model):
 
     class Meta:
         db_table = 'EmailVerification'
+
+ACTIVITIES_CHOICE = [
+    ("DEBIT", "User got debited"),
+    ("CREDIT", "User got creadited")
+]
+class Activities(models.Model):
+    title = models.CharField(max_length=250)
+    amount = models.IntegerField()
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_activity')
+    activity_type = models.CharField(
+        max_length=255,
+        choices= ACTIVITIES_CHOICE,
+        default= ACTIVITIES_CHOICE[0][0]
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        return f"{self.amount} - {self.title} by {self.user.firstname} on {self.created_at}"
+
+class InvestmentPlan(models.Model):
+    title = models.CharField(max_length=255)
+    image = models.ImageField(upload_to="investments/")
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_active = models.BooleanField(default=True)
+    quota = models.IntegerField()
+    interest_rate = models.IntegerField()
+    unit_share = models.IntegerField()
+    created_at                  = models.DateTimeField(auto_now_add=True)
+    updated_at                  = models.DateTimeField(auto_now=True)
+    def __str__(self):
+        return f"{self.title} from {self.start_date} to {self.end_date}"
+
+class UserInvestments(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_investment')
+    investment = models.ForeignKey(InvestmentPlan, null=True, blank=True, on_delete=models.SET_NULL, related_name='investment_type')
+    shares = models.IntegerField()
+    amount = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    due_date = models.DateField()
+    def __str__(self):
+        return f"{self.user.lastname} - {self.investment.title} - {self.shares} - {self.amount}"

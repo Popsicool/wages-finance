@@ -4,12 +4,14 @@ from rest_framework.response import Response
 from user.models import User
 from django.contrib.auth.models import Group
 from .serializers import (
-    AdminInviteSerializer
+    AdminInviteSerializer,
+    AdminCreateInvestmentSerializer
 )
 import random
 import string
 from utils.email import SendMail
 from rest_framework import status
+from django.db import transaction
 # Create your views here.
 
 def generate_random_password(length=10):
@@ -49,3 +51,14 @@ class AdminInviteView(generics.GenericAPIView):
                 SendMail.send_invite_mail(data)
             return Response(f"The following accounts were created {created}", status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminCreateInvestment(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    serializer_class = AdminCreateInvestmentSerializer
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            serializer.save()
+            return Response(data=serializer.data, status= status.HTTP_201_CREATED)

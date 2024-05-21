@@ -22,6 +22,7 @@ urlpatterns = [
     path('wages/', admin.site.urls),
     path('api/v1/auth/', include('authentication.urls')),
     path('api/v1/admin/', include('admin.urls')),
+    path('api/v1/user/', include('user.urls')),
 ]
 
 urlpatterns += static(settings.STATIC_URL,

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, EmailVerification
+from .models import User, EmailVerification,Activities,InvestmentPlan, UserInvestments
 # Register your models here.
 # admin.site.register(User)
 class UserAdmin(admin.ModelAdmin):
