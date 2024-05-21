@@ -18,12 +18,13 @@ from .serializers import (
     SignupSerializer,
     ResendVerificationMailSerializer,
     LoginSerializer,
-    EmailVerificationSerializer,
+    PhoneVerificationSerializer,
     RequestPasswordResetEmailSerializer,
     SetNewPasswordSerializer,
     ChangePasswordSerializer
 )
 from utils.email import SendMail
+from utils.sms import SendSMS
 from .permissions import IsUser
 
 
@@ -55,17 +56,19 @@ class SignupView(generics.GenericAPIView):
             user = serializer.save()
 
             # generate email verification token
-            token = User.objects.make_random_password(length=6, allowed_chars=f'0123456789')
+            token = User.objects.make_random_password(length=4, allowed_chars=f'0123456789')
             token_expiry = timezone.now() + timedelta(minutes=6)
 
             EmailVerification.objects.create(user=user, token=token, token_expiry=token_expiry)
 
             # Send Mail
-            data = {"token": token, "firstname": user.firstname, "lastname": user.lastname, 'user': user.email}
-            SendMail.send_email_verification_mail(data)
+            # data = {"token": token, "firstname": user.firstname, "lastname": user.lastname, 'user': user.email}
+            # SendMail.send_email_verification_mail(data)
+            data = {"token": token, 'number': user.phone}
+            SendSMS.sendVerificationCode(data)
 
         return Response({
-            "message": "Registration successful. Check email for verification code"
+            "message": "Registration successful. Check phone for verification code"
         }, status=status.HTTP_201_CREATED)
 
 
@@ -80,7 +83,7 @@ class ResendVerificationMail(generics.GenericAPIView):
         with transaction.atomic():
             if verification_obj:
                 # generate email verification token
-                token = User.objects.make_random_password(length=6, allowed_chars=f'0123456789')
+                token = User.objects.make_random_password(length=4, allowed_chars=f'0123456789')
                 token_expiry = timezone.now() + timedelta(minutes=6)
 
                 verification_obj.token = token
@@ -88,17 +91,19 @@ class ResendVerificationMail(generics.GenericAPIView):
                 verification_obj.save()
 
                 # Send Mail
-                data = {
-                    "token": token,
-                    "firstname": verification_obj.user.firstname,
-                    "lastname": verification_obj.user.lastname,
-                    'user': verification_obj.user.email
-                    }
+                # data = {
+                #     "token": token,
+                #     "firstname": verification_obj.user.firstname,
+                #     "lastname": verification_obj.user.lastname,
+                #     'user': verification_obj.user.email
+                #     }
 
-                SendMail.send_email_verification_mail(data)
+                # SendMail.send_email_verification_mail(data)
+                data = {"token": token, 'number': verification_obj.user.phone}
+                SendSMS.sendVerificationCode(data)
 
         return Response({
-            "message": "check email for verification code",
+            "message": "check phone for verification code",
         }, status=200)
 
 
@@ -112,8 +117,8 @@ class LoginView(generics.GenericAPIView):
         return Response( serializer.data, status=status.HTTP_200_OK)
 
 
-class VerifyEmail(generics.GenericAPIView):
-    serializer_class = EmailVerificationSerializer
+class VerifyPhone(generics.GenericAPIView):
+    serializer_class = PhoneVerificationSerializer
 
     def post(self, request):
 

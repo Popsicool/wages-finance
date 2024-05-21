@@ -49,6 +49,8 @@ class SignupSerializer(serializers.ModelSerializer):
 
         if re.search(r"[@$!%*#?&]", password) is None:
             raise serializers.ValidationError("password must contain One Special Character")
+        if not phone.startswith("+"):
+            raise serializers.ValidationError("Phone number is expected in international format.")
 
 
         return attrs
@@ -61,23 +63,21 @@ class SignupSerializer(serializers.ModelSerializer):
         validated_data["referal_code"] = random_string.upper()
         return User.objects.create_user(**validated_data)
 
-class EmailVerificationSerializer(serializers.ModelSerializer):
-    token = serializers.CharField(max_length=6, min_length=6, write_only=True)
-    email = serializers.EmailField(write_only=True)
+class PhoneVerificationSerializer(serializers.ModelSerializer):
+    token = serializers.CharField(max_length=6, min_length=4, write_only=True)
+    phone = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
-        fields = ['token', 'email']
+        fields = ['token', 'phone']
 
     def validate(self, attrs):
-        email = attrs.get('email', '')
+        phone = attrs.get('phone', '')
         token = attrs.get('token', '')
 
-        users = User.objects.filter(email=email)
-        if len(users) <= 0:
+        user = User.objects.filter(phone=phone).first()
+        if not user:
             raise ParseError('user not found')
-
-        user = users[0]
         verificationObj = EmailVerification.objects.filter(user=user).first()
 
         if not verificationObj:
@@ -101,12 +101,12 @@ class EmailVerificationSerializer(serializers.ModelSerializer):
 
 
 class ResendVerificationMailSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    phone = serializers.CharField()
 
     def validate(self, attrs):
-        email = attrs.get('email')
+        phone = attrs.get('phone')
 
-        user = User.objects.filter(email=email, is_verified=False).first()
+        user = User.objects.filter(phone=phone, is_verified=False).first()
         if user:
             verification_obj = EmailVerification.objects.filter(user=user, is_verified=False).first()
             return verification_obj
