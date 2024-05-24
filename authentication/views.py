@@ -21,7 +21,8 @@ from .serializers import (
     PhoneVerificationSerializer,
     RequestPasswordResetEmailSerializer,
     SetNewPasswordSerializer,
-    ChangePasswordSerializer
+    ChangePasswordSerializer,
+    UpdateBvn
 )
 from utils.email import SendMail
 from utils.sms import SendSMS
@@ -193,3 +194,12 @@ class ChangePasswordAPIView(generics.GenericAPIView):
 
         return Response({'message': 'password change successful'}, status=status.HTTP_200_OK)
 
+
+class SetBvnView(generics.GenericAPIView):
+    serializer_class = UpdateBvn
+    permission_classes = [permissions.IsAuthenticated]
+    def post(self, request):
+        user = request.user
+        serializer = self.serializer_class(data = request.data)
+        serializer.is_valid(raise_exception=True)
+        

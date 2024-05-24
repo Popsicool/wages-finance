@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser,BaseUserManager,PermissionsMixin
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.core.validators import MinLengthValidator
+from django.core.validators import MinLengthValidator, MinValueValidator, MaxValueValidator
 # Create your models here.
 
 class UserManager(BaseUserManager):
@@ -60,6 +60,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active                   = models.BooleanField(default=True)
     is_staff                    = models.BooleanField(default=False)
     is_subscribed = models.BooleanField(default=False)
+    pin = models.IntegerField(validators=[MinValueValidator(1000), MaxValueValidator(9999)], blank=True, null=True)
     wallet_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     wages_point = models.IntegerField(default=0)
     referal_code = models.CharField(max_length=10, blank=True, null=True)
@@ -114,6 +115,11 @@ ACTIVITIES_CHOICE = [
     ("DEBIT", "User got debited"),
     ("CREDIT", "User got creadited")
 ]
+# ACTIVITIES_TITLE_CHOICE = [
+#     ("Subscription", "Paid one time subscribtion fee"),
+#     ("SME Recharge", "Airtime purchase")
+# ]
+
 class Activities(models.Model):
     title = models.CharField(max_length=250)
     amount = models.IntegerField()

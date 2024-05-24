@@ -124,10 +124,12 @@ class LoginSerializer(serializers.ModelSerializer):
         max_length=255, min_length=3, read_only=True)
     role = serializers.CharField(
         max_length=255, min_length=3, read_only=True)
+    pin = serializers.SerializerMethodField(read_only=True)
+    is_subscribed = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = User
-        fields = ['id','email', 'password', 'tokens', 'firstname', 'lastname', 'role']
+        fields = ['id','email', 'password', 'tokens', 'firstname', 'lastname', 'role', 'pin', 'is_subscribed']
 
     def validate(self, attrs):
         email = attrs.get('email', '')
@@ -155,7 +157,12 @@ class LoginSerializer(serializers.ModelSerializer):
             'lastname': user.lastname,
             'role': role,
             'tokens': user.tokens,
+            'pin': user.pin,
+            'is_subscribed': user.is_subscribed
         }
+    def get_pin(self, obj):
+        print(obj)
+        return True if obj['pin'] else False
 
 
 class RequestPasswordResetEmailSerializer(serializers.Serializer):
@@ -276,3 +283,8 @@ class ChangePasswordSerializer(serializers.Serializer):
         user.set_password(new_password)
         user.save()
         return user
+
+class UpdateBvn(serializers.Serializer):
+    bvn = serializers.IntegerField(max_value=10, min_value=10)
+    class Meta:
+        fields = ["bvn"]

@@ -12,3 +12,4 @@ class UserAdmin(admin.ModelAdmin):
     list_per_page = 100
 admin.site.register(User, UserAdmin)
 admin.site.register(EmailVerification)
+admin.site.register(Activities)
