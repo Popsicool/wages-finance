@@ -129,7 +129,7 @@ class LoginSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id','email', 'password', 'tokens', 'firstname', 'lastname', 'role', 'pin', 'is_subscribed']
+        fields = ['id','email', 'password', 'tokens', 'firstname', 'lastname', 'role', 'pin', 'is_subscribed', 'is_verified']
 
     def validate(self, attrs):
         email = attrs.get('email', '')
@@ -146,9 +146,8 @@ class LoginSerializer(serializers.ModelSerializer):
         user = auth.authenticate(email=email, password=password)
         if not user:
             raise AuthenticationFailed('invalid credentials, try again')
-        if not user.is_verified:
-            raise AuthenticationFailed('please verify your account')
-        
+        # if not user.is_verified:
+        #     raise AuthenticationFailed('please verify your account')
         role = user.role
         return {
             'id': user.id,
@@ -158,10 +157,10 @@ class LoginSerializer(serializers.ModelSerializer):
             'role': role,
             'tokens': user.tokens,
             'pin': user.pin,
-            'is_subscribed': user.is_subscribed
+            'is_subscribed': user.is_subscribed,
+            'is_verified': user.is_verified
         }
     def get_pin(self, obj):
-        print(obj)
         return True if obj['pin'] else False
 
 
@@ -284,7 +283,31 @@ class ChangePasswordSerializer(serializers.Serializer):
         user.save()
         return user
 
-class UpdateBvn(serializers.Serializer):
-    bvn = serializers.IntegerField(max_value=10, min_value=10)
+class UpdateBvnSerializer(serializers.Serializer):
+    bvn = serializers.IntegerField()
     class Meta:
         fields = ["bvn"]
+    def validate(self, attrs):
+        bvn = attrs["bvn"]
+        if len(str(bvn)) != 11:
+            raise serializers.ValidationError(
+                "BVN must be 11 digits long")
+        return super().validate(attrs)
+class UpdateNinSerializer(serializers.Serializer):
+    nin = serializers.IntegerField()
+    class Meta:
+        fields = ["nin"]
+    def validate(self, attrs):
+        bvn = attrs["nin"]
+        if len(str(bvn)) != 11:
+            raise serializers.ValidationError(
+                "NIN must be 11 digits long")
+        return super().validate(attrs)
+class VerifyBVNSerializer(serializers.Serializer):
+    _id = serializers.CharField()
+    code = serializers.CharField()
+    bvn = serializers.IntegerField()
+class VerifyNINSerializer(serializers.Serializer):
+    _id = serializers.CharField()
+    code = serializers.CharField()
+    nin = serializers.IntegerField()

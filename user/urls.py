@@ -7,4 +7,5 @@ urlpatterns = [
     path('investment_plans/', GetInvestmentPlans.as_view(), name='get_investment_plans'),
     path('subscribe/', OneTimeSubscription.as_view(), name='one_time_subscription'),
     path('set_pin/', SetPin.as_view(), name='set_pin'),
+    path('update_dp/', UpdateDPView.as_view(), name='set_pin'),
 ]

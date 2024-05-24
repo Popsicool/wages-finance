@@ -5,7 +5,8 @@ from .serializers import (
     UserActivitiesSerializer,
     UserDashboardSerializer,
     InvestmentPlanSerializer,
-    SetPinSerializer
+    SetPinSerializer,
+    UpdateDP
 )
 from .models import Activities, User, InvestmentPlan
 from utils.pagination import CustomPagination
@@ -77,4 +78,14 @@ class SetPin(generics.GenericAPIView):
         user.save()
         return Response(data={"message":"success"},status=status.HTTP_201_CREATED)
     
-        
+class UpdateDPView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = UpdateDP
+    def post(self, request):
+        user = request.user
+        serialzer = self.serializer_class(data=request.data)
+        serialzer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            user.profile_picture = serialzer.validated_data["image"]
+            user.save()
+            return Response(status=status.HTTP_200_OK)

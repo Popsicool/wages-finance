@@ -55,6 +55,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     firstname                   = models.CharField(max_length=255)
     lastname                    = models.CharField(max_length=255)
     email                       = models.EmailField(max_length=255, unique=True, db_index=True)
+    profile_picture             = models.ImageField(upload_to="profile_pic/", null=True, blank=True)
     phone                       = models.CharField(max_length=255, unique=True, null=True, blank=True)
     is_verified                 = models.BooleanField(default=False)
     is_active                   = models.BooleanField(default=True)

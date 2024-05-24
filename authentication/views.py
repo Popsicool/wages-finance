@@ -13,7 +13,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.http import HttpResponsePermanentRedirect, HttpResponse
 from django.db import transaction
 
-from user.models import User, EmailVerification
+from user.models import User, EmailVerification, TIERS_CHOICE
 from .serializers import (
     SignupSerializer,
     ResendVerificationMailSerializer,
@@ -22,10 +22,14 @@ from .serializers import (
     RequestPasswordResetEmailSerializer,
     SetNewPasswordSerializer,
     ChangePasswordSerializer,
-    UpdateBvn
+    UpdateBvnSerializer,
+    VerifyBVNSerializer,
+    UpdateNinSerializer,
+    VerifyNINSerializer,
 )
 from utils.email import SendMail
 from utils.sms import SendSMS
+from utils.safehaven import safe_validate, safe_initiate
 from .permissions import IsUser
 
 
@@ -55,21 +59,14 @@ class SignupView(generics.GenericAPIView):
         with transaction.atomic():
             # persist user in db
             user = serializer.save()
-
             # generate email verification token
-            token = User.objects.make_random_password(length=4, allowed_chars=f'0123456789')
-            token_expiry = timezone.now() + timedelta(minutes=6)
-
-            EmailVerification.objects.create(user=user, token=token, token_expiry=token_expiry)
-
-            # Send Mail
-            # data = {"token": token, "firstname": user.firstname, "lastname": user.lastname, 'user': user.email}
-            # SendMail.send_email_verification_mail(data)
-            data = {"token": token, 'number': user.phone}
-            SendSMS.sendVerificationCode(data)
-
+            # token = User.objects.make_random_password(length=4, allowed_chars=f'0123456789')
+            # token_expiry = timezone.now() + timedelta(minutes=6)
+            # EmailVerification.objects.create(user=user, token=token, token_expiry=token_expiry)
+            # data = {"token": token, 'number': user.phone}
+            # SendSMS.sendVerificationCode(data)
         return Response({
-            "message": "Registration successful. Check phone for verification code"
+            "message": "Registration successful"
         }, status=status.HTTP_201_CREATED)
 
 
@@ -196,10 +193,86 @@ class ChangePasswordAPIView(generics.GenericAPIView):
 
 
 class SetBvnView(generics.GenericAPIView):
-    serializer_class = UpdateBvn
+    serializer_class = UpdateBvnSerializer
     permission_classes = [permissions.IsAuthenticated]
     def post(self, request):
         user = request.user
+        if user.bvn:
+            return Response({"message": "bvn already captured"}, status=status.HTTP_400_BAD_REQUEST)
         serializer = self.serializer_class(data = request.data)
         serializer.is_valid(raise_exception=True)
-        
+        # call safehaven endpoint
+        numn = serializer.validated_data["bvn"]
+        data = {'type':"BVN", "number": numn}
+        safe_init = safe_initiate(data)
+        id = "2099888"
+        with transaction.atomic():
+            # user.tier = TIERS_CHOICE[1][0]
+            user.save()
+        return Response(data=id, status=status.HTTP_200_OK)
+
+
+class VerifyBVNView(generics.GenericAPIView):
+    serializer_class = VerifyBVNSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    def post(self, request):
+        user = request.user
+        if user.bvn:
+            return Response({"message": "bvn already captured"}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        _id = serializer.validated_data["_id"]
+        code = serializer.validated_data["code"]
+        data = {"_id":_id, "token":code, "type":"BVN"}
+        # call safehaven verification endpoint
+        verify_status, verify_message = safe_validate(data)
+        if not verify_status:
+            return Response(data={"message": verify_message}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            user.bvn = serializer.validated_data["bvn"]
+            user.tier = TIERS_CHOICE[1][0]
+            user.is_verified = True
+            user.save()
+        return Response(data={"message": "success"}, status=status.HTTP_200_OK)
+
+class SetNinView(generics.GenericAPIView):
+    serializer_class = UpdateNinSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    def post(self, request):
+        user = request.user
+        if user.nin:
+            return Response({"message": "nin already captured"}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = self.serializer_class(data = request.data)
+        serializer.is_valid(raise_exception=True)
+        # call safehaven endpoint
+        numn = serializer.validated_data["nin"]
+        data = {'type':"NIN", "number": numn}
+        safe_init = safe_initiate(data)
+        id = "2099888"
+        with transaction.atomic():
+            user.save()
+        return Response(data=id, status=status.HTTP_200_OK)
+
+class VerifyNINView(generics.GenericAPIView):
+    serializer_class = VerifyNINSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    def post(self, request):
+        user = request.user
+        if user.nin:
+            return Response({"message": "nin already captured"}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        _id = serializer.validated_data["_id"]
+        code = serializer.validated_data["code"]
+        data = {"_id":_id, "token":code, "type":"NIN"}
+        # call safehaven verification endpoint
+        verify_status, verify_message = safe_validate(data)
+        if not verify_status:
+            return Response(data={"message": verify_message}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            user.nin = serializer.validated_data["nin"]
+            user.tier = TIERS_CHOICE[2][0]
+            user.save()
+        return Response(data={"message": "success"}, status=status.HTTP_200_OK)
