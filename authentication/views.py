@@ -204,12 +204,10 @@ class SetBvnView(generics.GenericAPIView):
         # call safehaven endpoint
         numn = serializer.validated_data["bvn"]
         data = {'type':"BVN", "number": numn}
-        safe_init = safe_initiate(data)
-        id = "2099888"
-        with transaction.atomic():
-            # user.tier = TIERS_CHOICE[1][0]
-            user.save()
-        return Response(data=id, status=status.HTTP_200_OK)
+        safe_status, _id = safe_initiate(data)
+        if safe_status:
+            return Response(data=_id, status=status.HTTP_200_OK)
+        return Response(data=_id, status=status.HTTP_400_BAD_REQUEST)
 
 
 class VerifyBVNView(generics.GenericAPIView):
@@ -248,11 +246,10 @@ class SetNinView(generics.GenericAPIView):
         # call safehaven endpoint
         numn = serializer.validated_data["nin"]
         data = {'type':"NIN", "number": numn}
-        safe_init = safe_initiate(data)
-        id = "2099888"
-        with transaction.atomic():
-            user.save()
-        return Response(data=id, status=status.HTTP_200_OK)
+        safe_status, _id = safe_initiate(data)
+        if safe_status:
+            return Response(data=_id, status=status.HTTP_200_OK)
+        return Response(data=_id, status=status.HTTP_400_BAD_REQUEST)
 
 class VerifyNINView(generics.GenericAPIView):
     serializer_class = VerifyNINSerializer

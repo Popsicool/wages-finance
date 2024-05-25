@@ -126,6 +126,7 @@ class LoginSerializer(serializers.ModelSerializer):
         max_length=255, min_length=3, read_only=True)
     pin = serializers.SerializerMethodField(read_only=True)
     is_subscribed = serializers.BooleanField(read_only=True)
+    is_verified = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = User
