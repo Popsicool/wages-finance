@@ -9,5 +9,6 @@ urlpatterns = [
     path('set_pin/', SetPin.as_view(), name='set_pin'),
     path('savings/', UserSavingsView.as_view(), name='user_savings'),
     path('new_savings/', NewSavingsView.as_view(), name='set_pin'),
+    path('fund_savings/<id>/', FundSavings.as_view(), name='fund_savings'),
     path('update_dp/', UpdateDPView.as_view(), name='set_pin'),
 ]

@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from rest_framework import generics, status, views, permissions, parsers
 from rest_framework.response import Response
 from .serializers import (
@@ -9,6 +9,7 @@ from .serializers import (
     UpdateDP,
     NewSavingsSerializer,
     UserSavingsSerializers,
+    AmountPinSerializer,
 )
 from .models import Activities, User, InvestmentPlan, UserSavings
 from utils.pagination import CustomPagination
@@ -122,4 +123,34 @@ class UserSavingsView(generics.ListAPIView):
         user = self.request.user
         queryset = UserSavings.objects.filter(user=user).order_by("-created_at")
         return queryset
+
+class FundSavings(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = AmountPinSerializer
+    def post(self, request, id):
+        user = request.user
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        savings = get_object_or_404(UserSavings, pk=id)
+        if savings.user != user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        with transaction.atomic():
+            pin = serializer.validated_data["pin"]
+            amount = serializer.validated_data["amount"]
+            if user.pin != pin:
+                return Response(data={"message": "invalid pin"}, status=status.HTTP_403_FORBIDDEN)
+            if not savings.is_active:
+                return Response(data={"message": "savings plan is no more active"}, status=status.HTTP_403_FORBIDDEN)
+            if user.wallet_balance < amount:
+                return Response(data={"message": "Insufficent amount in wallet"}, status=status.HTTP_403_FORBIDDEN)
+            user.wallet_balance -= amount
+            user.save()
+            savings.saved += amount
+            if savings.saved >= savings.amount:
+                savings.goal_met = True
+                savings.is_active = False
+            savings.save()
+            return Response(data={"message":"success"}, status=status.HTTP_202_ACCEPTED)
+
+
 

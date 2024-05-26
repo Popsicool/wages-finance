@@ -68,6 +68,10 @@ class UserSavingsSerializers(serializers.ModelSerializer):
 
 class UpdateDP(serializers.Serializer):
     image = serializers.ImageField()
+
+class AmountPinSerializer(serializers.Serializer):
+    pin = serializers.IntegerField(min_value=1000,max_value=9999)
+    amount = serializers.IntegerField()
 # class SetPinSerializer(serializers.Field):
 #     def to_internal_value(self, data):
 #         try:
