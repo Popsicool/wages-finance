@@ -6,9 +6,11 @@ from .serializers import (
     UserDashboardSerializer,
     InvestmentPlanSerializer,
     SetPinSerializer,
-    UpdateDP
+    UpdateDP,
+    NewSavingsSerializer,
+    UserSavingsSerializers,
 )
-from .models import Activities, User, InvestmentPlan
+from .models import Activities, User, InvestmentPlan, UserSavings
 from utils.pagination import CustomPagination
 from django.db import transaction
 
@@ -89,3 +91,35 @@ class UpdateDPView(generics.GenericAPIView):
             user.profile_picture = serialzer.validated_data["image"]
             user.save()
             return Response(status=status.HTTP_200_OK)
+
+class NewSavingsView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = NewSavingsSerializer
+    pagination_class = CustomPagination
+    def post(self, request):
+        user = request.user
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            serializer.save(user=user)
+            return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+
+class UserSavingsView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = UserSavingsSerializers
+    pagination_class = CustomPagination
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        user = self.request.user
+        queryset = UserSavings.objects.filter(user=user).order_by("-created_at")
+        return queryset
+

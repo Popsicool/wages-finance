@@ -1,13 +1,17 @@
 from rest_framework import serializers
-from .models import Activities, User, InvestmentPlan, UserInvestments
+from .models import Activities, User, InvestmentPlan, UserInvestments, UserSavings
+import re
 
 
+# def is_valid_date_format(date_string):
+#     pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+#     return bool(pattern.match(date_string))
 class UserActivitiesSerializer(serializers.ModelSerializer):
-
-
     class Meta:
         model = Activities
         fields = ["title","amount","activity_type","created_at"]
+
+
 
 class UserDashboardSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
@@ -35,6 +39,31 @@ class InvestmentPlanSerializer(serializers.ModelSerializer):
 
 class SetPinSerializer(serializers.Serializer):
     pin = serializers.IntegerField(min_value=1000,max_value=9999)
+
+class NewSavingsSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+    title = serializers.CharField()
+    amount= serializers.IntegerField()
+    start_date = serializers.DateField()
+    end_date = serializers.DateField()
+    frequency = serializers.CharField()
+    class Meta:
+        model = UserSavings
+        fields = ["id","title", "amount", "start_date","end_date", "frequency"]
+    def validate(self, attrs):
+        start_date = attrs.get("start_date")
+        end_date = attrs.get("end_date")
+        frequency = attrs.get("frequency").strip().upper()
+        if frequency not in ["DAILY", "WEEKLY", "MONTHLY"]:
+            raise serializers.ValidationError(
+                'Frequency must be one of "DAILY", "WEEKLY" or "MONTHLY"')
+        #! check past date
+        attrs["frequency"] = frequency
+        return attrs
+class UserSavingsSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = UserSavings
+        fields = ["id","title", "amount", "start_date","end_date", "frequency", "saved", "goal_met"]  
 
 
 class UpdateDP(serializers.Serializer):

@@ -116,10 +116,11 @@ ACTIVITIES_CHOICE = [
     ("DEBIT", "User got debited"),
     ("CREDIT", "User got creadited")
 ]
-# ACTIVITIES_TITLE_CHOICE = [
-#     ("Subscription", "Paid one time subscribtion fee"),
-#     ("SME Recharge", "Airtime purchase")
-# ]
+SAVINGS_FREQUENCY_CHOICE = [
+    ("DAILY", "Daily contribution"),
+    ("WEEKLY", "Weekly contribution"),
+    ("MONTHLY", "Monthly contribution")
+]
 
 class Activities(models.Model):
     title = models.CharField(max_length=250)
@@ -157,3 +158,22 @@ class UserInvestments(models.Model):
     due_date = models.DateField()
     def __str__(self):
         return f"{self.user.lastname} - {self.investment.title} - {self.shares} - {self.amount}"
+
+class UserSavings(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_savings')
+    title = models.TextField()
+    amount = models.BigIntegerField()
+    saved = models.BigIntegerField(default=0)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    cancel_date = models.DateField(blank=True, null=True)
+    goal_met = models.BooleanField(default=False)
+    frequency = models.CharField(
+        choices=SAVINGS_FREQUENCY_CHOICE,
+        default=SAVINGS_FREQUENCY_CHOICE[0][0]
+    )
+    is_active = models.BooleanField(default=True)
+    created_at                  = models.DateTimeField(auto_now_add=True)
+    updated_at                  = models.DateTimeField(auto_now=True)
+    def __str__(self):
+        return f"{self.user.lastname} - {self.title} - {self.amount} - {self.start_date} - {self.end_date}"
