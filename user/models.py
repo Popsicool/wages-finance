@@ -135,6 +135,25 @@ class Activities(models.Model):
     def __str__(self):
         return f"{self.amount} - {self.title} by {self.user.firstname} on {self.created_at}"
 
+WITHDRAWAL_STATUS = [
+    ("PENDING", "Withdrawal yet to be approved"),
+    ("REJECTED", "Withdrawal Rejected by admin"),
+    ("PROCESSING", "Withdrawal has been approved by admin, waiting for payout"),
+    ("SUCCESS", "Withdrawal Successfully done"),
+    ("FAILED", "Withdrawal failed on payment gateway")
+]
+class Withdrawal(models.Model):
+    amount = models.IntegerField()
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_withdrawal')
+    admin_user = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='user_withdrawal_approval', null=True, blank=True)
+    bank_name =  models.CharField()
+    account_number = models.CharField()
+    status = models.CharField(choices=WITHDRAWAL_STATUS, default=WITHDRAWAL_STATUS[0][0])
+    message = models.TextField(blank=True, null=True)
+    created_at                  = models.DateTimeField(auto_now_add=True)
+    updated_at                  = models.DateTimeField(auto_now=True)
+    def __str__(self):
+        return f"{self.created_at} == {self.user.firstname} {self.user.lastname} == {self.amount} == {self.bank_name} == {self.account_number} == {self.status} "
 class InvestmentPlan(models.Model):
     title = models.CharField(max_length=255)
     image = models.ImageField(upload_to="investments/")

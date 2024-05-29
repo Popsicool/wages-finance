@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from user.models import InvestmentPlan, User
+from user.models import InvestmentPlan, User, Withdrawal
 # from user.models import User
 
 class AdminInviteSerializer(serializers.Serializer):
@@ -12,7 +12,7 @@ class AdminInviteSerializer(serializers.Serializer):
                 "Role must be provided")
         return attrs
     email = serializers.EmailField()
-    role = serializers.ChoiceField(choices=["administrator", "member"])
+    role = serializers.ChoiceField(choices=["administrator", "accountant", "customer-support", "loan-managers"])
 
 class AdminCreateInvestmentSerializer(serializers.ModelSerializer):
     title = serializers.CharField(max_length=255)
@@ -34,3 +34,14 @@ class GetUsersSerializers(serializers.ModelSerializer):
         fields = ["id", "firstname", "lastname", "email",
                   "profile_picture", "phone", "wallet_balance",
                   "wages_point", "tier", "created_at"]
+
+class GetWithdrawalSerializers(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+    class Meta:
+        model = Withdrawal
+        fields = ["id","amount", "bank_name", "account_number", "status", "message", "user"]
+    def get_user(self, obj):
+        return f"{obj.user.firstname} {obj.user.lastname}"
+
+class RejectionReason(serializers.Serializer):
+    reason = serializers.CharField()

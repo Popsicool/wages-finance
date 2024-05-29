@@ -10,6 +10,7 @@ from .serializers import (
     NewSavingsSerializer,
     UserSavingsSerializers,
     AmountPinSerializer,
+    WithdrawalSeializer,
 )
 from .models import Activities, User, InvestmentPlan, UserSavings
 from utils.pagination import CustomPagination
@@ -153,4 +154,26 @@ class FundSavings(generics.GenericAPIView):
             return Response(data={"message":"success"}, status=status.HTTP_202_ACCEPTED)
 
 
+
+class WithdrawalView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = WithdrawalSeializer
+    def post(self, request):
+        user = request.user
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        amount = serializer.validated_data["amount"]
+        if user.wallet_balance < amount:
+            return Response(data={"message":"Insufficient Fund"}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            serializer.save(user = request.user)
+            user.wallet_balance -= amount
+            user.save()
+            new_activity = Activities.objects.create(
+                title="Fund withdrawal",
+                amount=amount,
+                user = user
+                )
+            new_activity.save()
+            return Response(data=serializer.data, status=status.HTTP_200_OK)
 

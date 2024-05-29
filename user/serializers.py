@@ -1,5 +1,12 @@
 from rest_framework import serializers
-from .models import Activities, User, InvestmentPlan, UserInvestments, UserSavings
+from .models import (
+    Activities,
+    User,
+    InvestmentPlan,
+    UserInvestments,
+    UserSavings,
+    Withdrawal,
+    )
 import re
 
 
@@ -72,6 +79,22 @@ class UpdateDP(serializers.Serializer):
 class AmountPinSerializer(serializers.Serializer):
     pin = serializers.IntegerField(min_value=1000,max_value=9999)
     amount = serializers.IntegerField()
+
+class WithdrawalSeializer(serializers.ModelSerializer):
+    amount = serializers.IntegerField()
+    bank_name = serializers.CharField()
+    account_number = serializers.CharField()
+    class Meta:
+        model = Withdrawal
+        fields = ["amount", "bank_name", "account_number"]
+    def validate(self, attrs):
+        if len(attrs["account_number"]) != 10:
+            raise serializers.ValidationError("Account number must be ten digits")
+        try:
+            account = int(attrs["account_number"])
+        except ValueError:
+            raise serializers.ValidationError("Account number must digits only")
+        return attrs
 # class SetPinSerializer(serializers.Field):
 #     def to_internal_value(self, data):
 #         try:
@@ -85,5 +108,6 @@ class AmountPinSerializer(serializers.Serializer):
 #     def to_representation(self, value):
 #         return value
 '''
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzE2NjIyMTk2LCJpYXQiOjE3MTY1MzU3OTYsImp0aSI6Ijg0OTZhODhlNWExZDQyM2RhNDgyNWViNTllNmQ2M2VlIiwidXNlcl9pZCI6Mn0.wKKZ3XLU8iij_XuuNepIFTSYUxCHttpBIvQBm5DQ93g
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzE3MDYwNjQ0LCJpYXQiOjE3MTY5NzQyNDQsImp0aSI6IjMyZDk2MGViYTMyOTQxNWM5YzMwMDc0NGY1YjU3ZDM3IiwidXNlcl9pZCI6Mn0.juUGqYMI_HYH3avweRZXFhoSz8kihlrZ84zPgGcRbU4
+
 '''
