@@ -205,7 +205,6 @@ class SetBvnView(generics.GenericAPIView):
         numn = serializer.validated_data["bvn"]
         data = {'type':"BVN", "number": numn}
         safe_status, resp = safe_initiate(data)
-        print(safe_status)
         if safe_status:
             user.bvn_verify_details = resp
             user.save()

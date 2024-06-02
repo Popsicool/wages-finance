@@ -19,4 +19,3 @@ class SendSMS:
         'Content-Type': 'application/json',
         }
         response = requests.request("POST", url, headers=headers, json=payload)
-        print(response.text)

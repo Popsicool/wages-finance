@@ -107,7 +107,7 @@ class ResendVerificationMailSerializer(serializers.Serializer):
         phone = attrs.get('phone')
         user = User.objects.filter(phone=phone, is_verified=False).first()
         if user:
-            verification_obj = EmailVerification.objects.filter(user=user, is_verified=False).first()
+            verification_obj = EmailVerification.objects.filter(user=user, is_used=False).first()
             return verification_obj
 
         return False
