@@ -54,6 +54,7 @@ TIERS_CHOICE = [
 class User(AbstractBaseUser, PermissionsMixin):
     firstname                   = models.CharField(max_length=255)
     lastname                    = models.CharField(max_length=255)
+    account_number              = models.CharField(max_length=12, blank=True, null=True)
     email                       = models.EmailField(max_length=255, unique=True, db_index=True)
     profile_picture             = models.ImageField(upload_to="profile_pic/", null=True, blank=True)
     phone                       = models.CharField(max_length=255, unique=True, null=True, blank=True)
@@ -66,7 +67,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     wages_point = models.IntegerField(default=0)
     referal_code = models.CharField(max_length=10, blank=True, null=True)
     bvn = models.CharField(max_length=15, blank=True, null=True)
+    bvn_verify_details = models.JSONField(blank=True, null=True)
     nin = models.CharField(max_length=15, blank=True, null=True)
+    nin_verify_details = models.JSONField(blank=True, null=True)
     tier                        = models.CharField(
         max_length=255,
         choices= TIERS_CHOICE,
@@ -196,3 +199,24 @@ class UserSavings(models.Model):
     updated_at                  = models.DateTimeField(auto_now=True)
     def __str__(self):
         return f"{self.user.lastname} - {self.title} - {self.amount} - {self.start_date} - {self.end_date}"
+
+
+class CoporativeMembership(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    balance = models.BigIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    date_joined = models.DateTimeField(auto_now_add=True)
+    updated_at                  = models.DateTimeField(auto_now=True)
+    membership_id = models.CharField(max_length=20,unique=True)
+    def __str__(self):
+        return f"{self.user.lastname} - {self.membership_id} - {self.balance} -{self.date_joined}"
+
+
+
+class SafeHavenAPIDetails(models.Model):
+    acc_token = models.TextField(max_length=255)
+    client_id = models.CharField(max_length=255)
+    ibs_client_id = models.CharField(max_length=255)
+    ibs_user_id = models.CharField(max_length=255)
+    updated_at = models.DateTimeField(auto_now=True)
+

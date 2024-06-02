@@ -12,4 +12,5 @@ urlpatterns = [
     path('fund_savings/<id>/', FundSavings.as_view(), name='fund_savings'),
     path('update_dp/', UpdateDPView.as_view(), name='set_pin'),
     path('withdrawal_request/', WithdrawalView.as_view(), name='withdrawal_request'),
+    path('coop_details/', Coporative_dashboard.as_view(), name='withdrawal_request'),
 ]

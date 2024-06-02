@@ -29,7 +29,7 @@ from .serializers import (
 )
 from utils.email import SendMail
 from utils.sms import SendSMS
-from utils.safehaven import safe_validate, safe_initiate
+from utils.safehaven import safe_validate, safe_initiate, create_safehaven_account
 from .permissions import IsUser
 
 
@@ -60,11 +60,11 @@ class SignupView(generics.GenericAPIView):
             # persist user in db
             user = serializer.save()
             # generate email verification token
-            # token = User.objects.make_random_password(length=4, allowed_chars=f'0123456789')
-            # token_expiry = timezone.now() + timedelta(minutes=6)
-            # EmailVerification.objects.create(user=user, token=token, token_expiry=token_expiry)
-            # data = {"token": token, 'number': user.phone}
-            # SendSMS.sendVerificationCode(data)
+            token = User.objects.make_random_password(length=4, allowed_chars=f'0123456789')
+            token_expiry = timezone.now() + timedelta(minutes=6)
+            EmailVerification.objects.create(user=user, token=token, token_expiry=token_expiry)
+            data = {"token": token, 'number': user.phone}
+            SendSMS.sendVerificationCode(data)
         return Response({
             "message": "Registration successful"
         }, status=status.HTTP_201_CREATED)
@@ -204,10 +204,13 @@ class SetBvnView(generics.GenericAPIView):
         # call safehaven endpoint
         numn = serializer.validated_data["bvn"]
         data = {'type':"BVN", "number": numn}
-        safe_status, _id = safe_initiate(data)
+        safe_status, resp = safe_initiate(data)
+        print(safe_status)
         if safe_status:
-            return Response(data=_id, status=status.HTTP_200_OK)
-        return Response(data=_id, status=status.HTTP_400_BAD_REQUEST)
+            user.bvn_verify_details = resp
+            user.save()
+            return Response(data={"message": "success"}, status=status.HTTP_200_OK)
+        return Response(data={"message": resp}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class VerifyBVNView(generics.GenericAPIView):
@@ -219,18 +222,31 @@ class VerifyBVNView(generics.GenericAPIView):
             return Response({"message": "bvn already captured"}, status=status.HTTP_400_BAD_REQUEST)
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-
-        _id = serializer.validated_data["_id"]
-        code = serializer.validated_data["code"]
-        data = {"_id":_id, "token":code, "type":"BVN"}
+        if not user.bvn_verify_details:
+            return Response({"message":"Use BVN initialization endpoint first"}, status=status.HTTP_400_BAD_REQUEST)
+        user_det = dict(user.bvn_verify_details)
+        _id = user_det["_id"]
+        code = user_det["otpId"]
+        # code = serializer.validated_data["code"]
+        data = {"_id":_id, "otp":code, "type":"BVN"}
         # call safehaven verification endpoint
         verify_status, verify_message = safe_validate(data)
         if not verify_status:
             return Response(data={"message": verify_message}, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():
-            user.bvn = serializer.validated_data["bvn"]
+            user.bvn = verify_message["bvn"]
+            user.bvn_verify_details = verify_message
             user.tier = TIERS_CHOICE[1][0]
             user.is_verified = True
+            acc_data = {
+                "phone": user.phone,
+                "email": user.email,
+                "bvn": verify_message["bvn"],
+                "_id": user_det["_id"],
+                "otp": user_det["otpId"]
+                }
+            account_number = create_safehaven_account(acc_data)
+            user.account_number = account_number
             user.save()
         return Response(data={"message": "success"}, status=status.HTTP_200_OK)
 

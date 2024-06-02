@@ -105,7 +105,6 @@ class ResendVerificationMailSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         phone = attrs.get('phone')
-
         user = User.objects.filter(phone=phone, is_verified=False).first()
         if user:
             verification_obj = EmailVerification.objects.filter(user=user, is_verified=False).first()
@@ -147,8 +146,8 @@ class LoginSerializer(serializers.ModelSerializer):
         user = auth.authenticate(email=email, password=password)
         if not user:
             raise AuthenticationFailed('invalid credentials, try again')
-        # if not user.is_verified:
-        #     raise AuthenticationFailed('please verify your account')
+        if not user.is_verified:
+            raise AuthenticationFailed('please verify your account')
         role = user.role
         return {
             'id': user.id,
@@ -305,9 +304,7 @@ class UpdateNinSerializer(serializers.Serializer):
                 "NIN must be 11 digits long")
         return super().validate(attrs)
 class VerifyBVNSerializer(serializers.Serializer):
-    _id = serializers.CharField()
     code = serializers.CharField()
-    bvn = serializers.IntegerField()
 class VerifyNINSerializer(serializers.Serializer):
     _id = serializers.CharField()
     code = serializers.CharField()

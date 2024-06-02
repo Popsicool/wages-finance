@@ -4,6 +4,7 @@ from .models import (
     User,
     InvestmentPlan,
     UserInvestments,
+    CoporativeMembership,
     UserSavings,
     Withdrawal,
     )
@@ -95,19 +96,8 @@ class WithdrawalSeializer(serializers.ModelSerializer):
         except ValueError:
             raise serializers.ValidationError("Account number must digits only")
         return attrs
-# class SetPinSerializer(serializers.Field):
-#     def to_internal_value(self, data):
-#         try:
-#             value = int(data)
-#             if len(str(value)) != 4:
-#                 raise serializers.ValidationError("Field must be a four-digit integer.")
-#             return value
-#         except ValueError:
-#             raise serializers.ValidationError("Invalid integer value.")
 
-#     def to_representation(self, value):
-#         return value
-'''
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzE3MDYwNjQ0LCJpYXQiOjE3MTY5NzQyNDQsImp0aSI6IjMyZDk2MGViYTMyOTQxNWM5YzMwMDc0NGY1YjU3ZDM3IiwidXNlcl9pZCI6Mn0.juUGqYMI_HYH3avweRZXFhoSz8kihlrZ84zPgGcRbU4
-
-'''
+class CoporativeDashboardSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CoporativeMembership
+        fields = ["balance", "date_joined", "membership_id"]

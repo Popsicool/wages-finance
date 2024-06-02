@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from rest_framework import generics, status, views, permissions, parsers
 from rest_framework.response import Response
+import random
 from .serializers import (
     UserActivitiesSerializer,
     UserDashboardSerializer,
@@ -10,9 +11,15 @@ from .serializers import (
     NewSavingsSerializer,
     UserSavingsSerializers,
     AmountPinSerializer,
+    CoporativeDashboardSerializer,
     WithdrawalSeializer,
 )
-from .models import Activities, User, InvestmentPlan, UserSavings
+from .models import (Activities,
+                     User,
+                     InvestmentPlan,
+                     UserSavings,
+                     CoporativeMembership
+                     )
 from utils.pagination import CustomPagination
 from django.db import transaction
 
@@ -66,6 +73,9 @@ class OneTimeSubscription(generics.GenericAPIView):
         with transaction.atomic():
             user.is_subscribed = True
             user.wallet_balance -= 5000
+            mem_id = 'WF-' + ''.join(random.sample('0123456789', 9))
+            new_coop = CoporativeMembership.objects.create(user = user, membership_id = mem_id)
+            new_coop.save()
             new_activity = Activities.objects.create(title="Membership Fee", amount=5000, user=user)
             new_activity.save()
             user.save()
@@ -177,3 +187,17 @@ class WithdrawalView(generics.GenericAPIView):
             new_activity.save()
             return Response(data=serializer.data, status=status.HTTP_200_OK)
 
+
+class Coporative_dashboard(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = CoporativeDashboardSerializer
+    def get(self, request):
+        user = request.user
+        if not user.is_subscribed:
+            return Response({"message": "Not yet a cooporative member"}, status=status.HTTP_401_UNAUTHORIZED)
+        queryset = CoporativeMembership.objects.filter(user=user).first()
+        serializer = self.serializer_class(queryset)
+        return Response(serializer.data, status = 200)
+
+
+    
