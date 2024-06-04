@@ -2,6 +2,8 @@ from django.shortcuts import render, get_object_or_404
 from rest_framework import generics, status, views, permissions, parsers
 from rest_framework.response import Response
 import random
+from django.utils import timezone
+from datetime import timedelta
 from .serializers import (
     UserActivitiesSerializer,
     UserDashboardSerializer,
@@ -13,6 +15,7 @@ from .serializers import (
     AmountPinSerializer,
     CoporativeDashboardSerializer,
     WithdrawalSeializer,
+    LoanRequestSerializer,
 )
 from .models import (Activities,
                      User,
@@ -199,5 +202,20 @@ class Coporative_dashboard(views.APIView):
         serializer = self.serializer_class(queryset)
         return Response(serializer.data, status = 200)
 
-
-    
+class LoanRequestView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = LoanRequestSerializer
+    def post(self, request):
+        user = request.user
+        membership = CoporativeMembership.objects.filter(user = user).first()
+        if not membership:
+            return Response(data={"message":"Not a member of coporative"}, status=status.HTTP_403_FORBIDDEN)
+        now = timezone.now()
+        memberships_joined = now - timedelta(days=5)
+        if membership.date_joined < memberships_joined:
+            return Response(data={"message":"Not up to 6 months as a coporative member"}, status=status.HTTP_403_FORBIDDEN)
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            serializer.save(user=user)
+            return Response(data=serializer.data, status=status.HTTP_201_CREATED)

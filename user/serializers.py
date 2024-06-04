@@ -7,6 +7,7 @@ from .models import (
     CoporativeMembership,
     UserSavings,
     Withdrawal,
+    Loan,
     )
 import re
 
@@ -101,3 +102,31 @@ class CoporativeDashboardSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoporativeMembership
         fields = ["balance", "date_joined", "membership_id"]
+
+class LoanRequestSerializer(serializers.ModelSerializer):
+    guarantor1 = serializers.EmailField()
+    guarantor2 = serializers.EmailField()
+    amount = serializers.IntegerField()
+    duration_in_months = serializers.IntegerField(required=False)
+    class Meta:
+        model = Loan
+        fields = ["guarantor1", "guarantor2", "amount", "duration_in_months"]
+    def validate(self, attrs):
+        guarantor1 = attrs.get("guarantor1")
+        guarantor2 = attrs.get("guarantor2")
+        amount = attrs.get("amount")
+        if amount < 0:
+            raise serializers.ValidationError("Amount must be a positive number")
+        g1 = User.objects.filter(email=guarantor1).first()
+        g2 = User.objects.filter(email=guarantor2).first()
+        if not g1:
+            raise serializers.ValidationError("Guarantor1 not found")
+        if not g2:
+            raise serializers.ValidationError("Guarantor2 not found")
+        g1_member = CoporativeMembership.objects.filter(user=g1).first()
+        g2_member = CoporativeMembership.objects.filter(user=g2).first()
+        if not g1_member:
+            raise serializers.ValidationError("Guarantor1 not a valid cooporative member")
+        if not g2_member:
+            raise serializers.ValidationError("Guarantor2 not a valid cooporative member")
+        return attrs

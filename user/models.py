@@ -117,7 +117,7 @@ class EmailVerification(models.Model):
 
 ACTIVITIES_CHOICE = [
     ("DEBIT", "User got debited"),
-    ("CREDIT", "User got creadited")
+    ("CREDIT", "User got credited")
 ]
 SAVINGS_FREQUENCY_CHOICE = [
     ("DAILY", "Daily contribution"),
@@ -220,3 +220,32 @@ class SafeHavenAPIDetails(models.Model):
     ibs_user_id = models.CharField(max_length=255)
     updated_at = models.DateTimeField(auto_now=True)
 
+
+LOAN_STATUS = [
+    ("PENDING", "Loan waiting for admin approval"),
+    ("APPROVED", "Loan approved by admin"),
+    ("REJECTED", "Loan Rejected by admin"),
+    ("REPAYED","Loan fully repayed"),
+    ("OVER-DUE","Loan overdued"),
+]
+class Loan(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_loan")
+    guarantor1 = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="guaranter_1")
+    guarantor2 = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="guaranter_2")
+    guarantor1_agreed = models.BooleanField(default=False)
+    guarantor2_agreed = models.BooleanField(default=False)
+    amount = models.PositiveBigIntegerField()
+    amount_repayed = models.PositiveBigIntegerField(default=0)
+    balance = models.PositiveBigIntegerField(default=0)
+    duration_in_months = models.PositiveIntegerField(default=6)
+    interest_rate = models.PositiveIntegerField(default=10)
+    status = models.CharField(choices=LOAN_STATUS, default=LOAN_STATUS[0][0], max_length=10)
+    date_requested = models.DateTimeField(auto_now_add=True)
+    date_approved = models.DateField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            self.balance = self.amount + (self.amount * (self.interest_rate / 100))
+        super().save(*args, **kwargs)
+    def __str__(self):
+        return f"{self.user.lastname} - {self.balance} - {self.status}"
