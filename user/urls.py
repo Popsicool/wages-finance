@@ -14,4 +14,6 @@ urlpatterns = [
     path('withdrawal_request/', WithdrawalView.as_view(), name='withdrawal_request'),
     path('coop_details/', Coporative_dashboard.as_view(), name='coop_request'),
     path('request_loan/', LoanRequestView.as_view(), name='loan_request'),
+    path('referals/', ReferalViews.as_view(), name='referals'),
+    path('withdraw_referals/', WithdrawReferalBonus.as_view(), name='withdraw_referals'),
 ]

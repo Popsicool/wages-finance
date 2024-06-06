@@ -130,3 +130,31 @@ class LoanRequestSerializer(serializers.ModelSerializer):
         if not g2_member:
             raise serializers.ValidationError("Guarantor2 not a valid cooporative member")
         return attrs
+
+# class ReferalInnerSerializer(serializers.ModelSerializer):
+#     class Meta:
+
+class ReferalSerializer(serializers.ModelSerializer):
+    referals = serializers.SerializerMethodField()
+    class Meta:
+        model = User
+        fields = ["referal_balance", "referals"]
+    def get_referals(self, obj):
+        # Fetch all users with the given referral
+        refs = User.objects.filter(referal=obj)
+
+        # Pre-fetch all relevant memberships
+        memberships = CoporativeMembership.objects.filter(user__in=refs)
+        memberships_dict = {membership.user_id: membership.date_joined for membership in memberships}
+        
+        default_picture_url = None
+
+        return [
+            {
+                "name": f"{person.firstname} {person.lastname}",
+                "picture": person.profile_picture.url if person.profile_picture else default_picture_url,
+                "date_joined": person.created_at,
+                "date_subscribed": memberships_dict.get(person.id)
+            }
+            for person in refs
+        ]

@@ -16,6 +16,7 @@ from .serializers import (
     CoporativeDashboardSerializer,
     WithdrawalSeializer,
     LoanRequestSerializer,
+    ReferalSerializer,
 )
 from .models import (Activities,
                      User,
@@ -81,6 +82,10 @@ class OneTimeSubscription(generics.GenericAPIView):
             new_coop.save()
             new_activity = Activities.objects.create(title="Membership Fee", amount=5000, user=user)
             new_activity.save()
+            referal = user.referal
+            if referal:
+                referal.referal_balance += 2000
+                referal.save()
             user.save()
             return Response(data={"message": "success"}, status=status.HTTP_200_OK)
         
@@ -219,3 +224,30 @@ class LoanRequestView(generics.GenericAPIView):
         with transaction.atomic():
             serializer.save(user=user)
             return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+
+class ReferalViews(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ReferalSerializer
+    def get(self, request):
+        user = request.user
+        serializer = self.serializer_class(user)
+        return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+
+class WithdrawReferalBonus(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def get(Self,request):
+        user = request.user
+        if user.referal_balance <= 0:
+            return Response(data={"message": "No fund in referal balance"}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            new_activity = Activities.objects.create(
+                user=user,
+                title=f"N {user.referal_balance} referal bonus withdrawal",
+                activity_type = "CREDIT",
+                amount = user.referal_balance)
+            new_activity.save()
+            user.wallet_balance += user.referal_balance
+            user.referal_balance = 0
+            user.save()
+            return Response(data={"message": "success"}, status = status.HTTP_200_OK)
+
