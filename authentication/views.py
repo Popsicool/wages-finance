@@ -1,5 +1,4 @@
 from decouple import config
-import json
 from datetime import timedelta
 from django.utils import timezone
 from rest_framework import generics, status, views, permissions, parsers
@@ -7,7 +6,6 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.sites.shortcuts import get_current_site
 from django.urls import reverse
-from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils.encoding import smart_bytes, smart_str, DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.http import HttpResponsePermanentRedirect, HttpResponse
@@ -19,13 +17,14 @@ from .serializers import (
     ResendVerificationMailSerializer,
     LoginSerializer,
     PhoneVerificationSerializer,
-    RequestPasswordResetEmailSerializer,
+    RequestPasswordResetPhoneSerializer,
     SetNewPasswordSerializer,
     ChangePasswordSerializer,
     UpdateBvnSerializer,
     VerifyBVNSerializer,
     UpdateNinSerializer,
     VerifyNINSerializer,
+    PhoneCodeVerificationSerializer
 )
 from utils.email import SendMail
 from utils.sms import SendSMS
@@ -87,16 +86,6 @@ class ResendVerificationMail(generics.GenericAPIView):
                 verification_obj.token = token
                 verification_obj.token_expiry = token_expiry
                 verification_obj.save()
-
-                # Send Mail
-                # data = {
-                #     "token": token,
-                #     "firstname": verification_obj.user.firstname,
-                #     "lastname": verification_obj.user.lastname,
-                #     'user': verification_obj.user.email
-                #     }
-
-                # SendMail.send_email_verification_mail(data)
                 data = {"token": token, 'number': verification_obj.user.phone}
                 SendSMS.sendVerificationCode(data)
 
@@ -126,23 +115,6 @@ class VerifyPhone(generics.GenericAPIView):
         return Response({"message": "success"}, status=status.HTTP_200_OK)
 
 
-class RequestPasswordResetEmail(generics.GenericAPIView):
-    serializer_class = RequestPasswordResetEmailSerializer
-
-    def post(self, request):
-        # validate request body
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        # serializer validated_data retuns custom "False" value if encounters error
-        if serializer.validated_data:
-            # redirect_url = serializer.validated_data['redirect_url']
-            # send mail
-            SendMail.send_password_reset_mail(serializer.data)
-
-        return Response({
-            'message': 'we have sent you a link to reset your password'
-        }, status=status.HTTP_200_OK)
 
 
 
@@ -150,6 +122,21 @@ class CustomRedirect(HttpResponsePermanentRedirect):
     allowed_schemes = ['http', 'https']
 
 
+class RequestPasswordResetPhoneView(generics.GenericAPIView):
+    serializer_class = RequestPasswordResetPhoneSerializer
+
+    def post(self, request):
+        # validate request body
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        # serializer validated_data retuns custom "False" value if encounters error
+        if serializer.validated_data:
+            # send sms
+            data = {"token": serializer.validated_data["token"], 'number': serializer.validated_data["phone"]}
+            SendSMS.sendVerificationCode(data)
+        return Response({
+            'message': 'we have sent you a code to reset your password'
+        }, status=status.HTTP_200_OK)
 # class PasswordTokenCheckAPI(generics.GenericAPIView):
 #     serializer_class = SetNewPasswordSerializer
 
@@ -169,12 +156,16 @@ class CustomRedirect(HttpResponsePermanentRedirect):
 #         except Exception:
 #             return HttpResponse('<p>Invalid Token. Request a new one</p>', status=400)
 
-
+class VerifyPasswordResetCode(generics.GenericAPIView):
+    serializer_class = PhoneCodeVerificationSerializer
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        return Response(data=data, status=status.HTTP_200_OK)
 class SetNewPasswordAPIView(generics.GenericAPIView):
     serializer_class = SetNewPasswordSerializer
-
     def patch(self, request):
-
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         return Response({'message': 'Password reset successful'}, status=status.HTTP_200_OK)

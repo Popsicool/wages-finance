@@ -1,12 +1,11 @@
 from django.utils import timezone
-import re
+from datetime import timedelta
 from rest_framework import serializers
 from django.contrib import auth
 from rest_framework.exceptions import AuthenticationFailed, ParseError
-from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils.encoding import force_str, smart_bytes
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from user.models import User, EmailVerification, USER_ROLES
+from user.models import User, EmailVerification, ForgetPasswordToken
 import random
 import string
 from utils.email import SendMail
@@ -62,6 +61,79 @@ class SignupSerializer(serializers.ModelSerializer):
             random_string = ''.join(random.choice(all_chars) for _ in range(6))
         validated_data["referal_code"] = random_string.upper()
         return User.objects.create_user(**validated_data)
+
+class RequestPasswordResetPhoneSerializer(serializers.Serializer):
+    phone = serializers.CharField(min_length=2)
+    token = serializers.CharField(min_length=1, read_only=True)
+    # uid64 = serializers.CharField(min_length=1, read_only=True)
+
+    class Meta:
+        fields = ['phone', 'token']
+
+    def validate(self, attrs):
+        phone = attrs.get('phone', '')
+        user = User.objects.filter(phone=phone).first()
+
+        if not user:
+            # if user account not found, don't throw error
+            raise AuthenticationFailed('invalid credentials, try again')
+        if user.is_staff:
+            raise AuthenticationFailed('invalid credentials, try again')
+
+        # generate reset token
+        token = User.objects.make_random_password(length=4, allowed_chars=f'0123456789')
+        token_expiry = timezone.now() + timedelta(minutes=6)
+        forget_pass = ForgetPasswordToken.objects.filter(user=user).first()
+        if not forget_pass:
+            forget_pass = ForgetPasswordToken.objects.create(
+                user=user,
+                token=token,
+                token_expiry=token_expiry)
+        else:
+            forget_pass.is_used = False
+            forget_pass.token = token
+            forget_pass.token_expiry = token_expiry
+        forget_pass.save()
+
+        return {"token": token, "phone": phone}
+
+
+class PhoneCodeVerificationSerializer(serializers.ModelSerializer):
+    token = serializers.CharField(max_length=4, min_length=4, write_only=True)
+    phone = serializers.CharField(write_only=True)
+    uuid = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['token', 'phone', 'uuid']
+
+    def validate(self, attrs):
+        phone = attrs.get('phone', '')
+        token = attrs.get('token', '')
+
+        user = User.objects.filter(phone=phone).first()
+        if not user:
+            raise ParseError('user not found')
+        verificationObj = ForgetPasswordToken.objects.filter(user=user).first()
+
+        if not verificationObj:
+            raise ParseError('user not found')
+
+        if verificationObj.token != token:
+            raise ParseError('wrong token')
+
+        if verificationObj.is_used:
+            raise ParseError('token expired')
+
+        if verificationObj.token_expiry < timezone.now():
+            raise ParseError('token expired')
+
+        verificationObj.is_used = True
+        verificationObj.token_expiry = timezone.now()
+        verificationObj.save()
+        attrs['uid64'] = urlsafe_base64_encode(smart_bytes(user.id))
+        return attrs
+
 
 class PhoneVerificationSerializer(serializers.ModelSerializer):
     token = serializers.CharField(max_length=6, min_length=4, write_only=True)
@@ -164,59 +236,28 @@ class LoginSerializer(serializers.ModelSerializer):
         return True if obj['pin'] else False
 
 
-class RequestPasswordResetEmailSerializer(serializers.Serializer):
-    email = serializers.EmailField(min_length=2)
-    token = serializers.CharField(min_length=1, read_only=True)
-    uid64 = serializers.CharField(min_length=1, read_only=True)
-    redirect_url = serializers.CharField(max_length=500)
-
-    class Meta:
-        fields = ['email', 'uid64', 'token']
-
-    def validate(self, attrs):
-        email = attrs.get('email', '')
-        redirect_url = attrs.get("redirect_url", "")
-        user = User.objects.filter(email=email).first()
-
-        if not user:
-            # if user account not found, don't throw error
-            return False
-
-
-        # encode userId as base64 uuid
-        uid64 = urlsafe_base64_encode(smart_bytes(user.id))
-
-        # generate reset token
-        token = PasswordResetTokenGenerator().make_token(user)
-
-        return {"uid64": uid64, "token": token, "email": user.email, "redirect_url":redirect_url}
 
 
 class SetNewPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(
         min_length=6, max_length=68, write_only=True)
-    token = serializers.CharField(
-        min_length=1, write_only=True)
     uid64 = serializers.CharField(
         min_length=1, write_only=True)
-
     class Meta:
-        fields = ['password', 'token', 'uid64']
+        fields = ['password', 'uid64']
 
     def validate(self, attrs):
 
         password = attrs.get('password')
-        token = attrs.get('token')
-        uid64 = attrs.get('uid64')
+        uid64 = attrs.get('uid64').upper()
 
         # Decode base64 string
-        try:
-            id = force_str(urlsafe_base64_decode(uid64))
-            user = User.objects.get(id=id)
-            if not PasswordResetTokenGenerator().check_token(user, token):
-                raise AuthenticationFailed('The reset link is invalid', 401)
-        except Exception as e:
-            raise AuthenticationFailed('The reset link is invalid', 401)
+        id = force_str(urlsafe_base64_decode(uid64))
+        if not id.isdigit():
+            raise AuthenticationFailed('Invalid user', 401)
+        user = User.objects.filter(id=id).first()
+        if not user:
+            raise AuthenticationFailed('Invalid user', 401)
 
         # Validate password
 

@@ -4,6 +4,7 @@ from rest_framework.response import Response
 import random
 from django.utils import timezone
 from datetime import timedelta
+from notification.models import Notification
 from .serializers import (
     UserActivitiesSerializer,
     UserDashboardSerializer,
@@ -85,6 +86,12 @@ class OneTimeSubscription(generics.GenericAPIView):
             referal = user.referal
             if referal:
                 referal.referal_balance += 2000
+                ref_notification = Notification.objects.create(
+                    user=referal,
+                    title = "Referal bonus",
+                    text= f"N2000 Referal bonus for referring {user.firstname} {user.lastname}"
+                    )
+                ref_notification.save()
                 referal.save()
             user.save()
             return Response(data={"message": "success"}, status=status.HTTP_200_OK)
