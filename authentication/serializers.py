@@ -16,13 +16,14 @@ import re
 class SignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(min_length=8, max_length=68, write_only=True)
     firstname = serializers.CharField()
+    referal_code = serializers.CharField(max_length=10, required=False)
     lastname = serializers.CharField()
     phone = serializers.CharField()
     email = serializers.EmailField()
 
     class Meta:
         model = User
-        fields = ['firstname', 'lastname', 'password', 'email', 'phone']
+        fields = ['firstname', 'lastname', 'password', 'email', 'phone', 'referal_code']
 
     def validate(self, attrs):
         firstname = attrs.get('firstname', '')
@@ -30,6 +31,12 @@ class SignupSerializer(serializers.ModelSerializer):
         password = attrs.get('password', '')
         email = attrs.get('email', "")
         phone = attrs.get('phone', "")
+        referal = attrs.get('referal_code')
+        if referal:
+            ref = User.objects.filter(referal_code=referal.strip().upper()).first()
+            if not ref:
+                raise serializers.ValidationError("Invalid referal code")
+            attrs["referal"] = ref
 
         if not firstname.isalpha():
             raise serializers.ValidationError("firstname must contain alphabets only")

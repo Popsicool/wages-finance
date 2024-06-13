@@ -163,7 +163,23 @@ class GetUsersSerializers(serializers.ModelSerializer):
         if obj.is_subscribed:
             return "ACTIVE"
         return "INACTIVE"
-
+class GetSingleUserSerializer(serializers.ModelSerializer):
+    membership_status = serializers.SerializerMethodField()
+    membership_id = serializers.SerializerMethodField()
+    profile_picture = serializers.SerializerMethodField()
+    class Meta:
+        model = User
+        fields = ["firstname", "lastname", "phone", "email","profile_picture", "wallet_balance", "tier", "created_at", "membership_id", "membership_status" ]
+    def get_membership_status(self, obj):
+        if obj.is_subscribed:
+            return "ACTIVE"
+        return "INACTIVE"
+    def get_membership_id(self, obj):
+        if obj.is_subscribed:
+            return obj.coporativemembership.membership_id
+        return None
+    def get_profile_picture(self, obj):
+        return obj.profile_picture.url if obj.profile_picture else None
 class GetWithdrawalSerializers(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
     class Meta:

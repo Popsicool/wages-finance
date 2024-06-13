@@ -15,6 +15,7 @@ from .serializers import (
     RejectionReason,
     RequestPasswordResetEmailSerializer,
     EmailCodeVerificationSerializer,
+    GetSingleUserSerializer,
 )
 import random
 import string
@@ -122,6 +123,13 @@ class AdminCreateInvestment(generics.GenericAPIView):
         with transaction.atomic():
             serializer.save()
             return Response(data=serializer.data, status= status.HTTP_201_CREATED)
+class GetSingleUserView(generics.GenericAPIView):
+    serializer_class = GetSingleUserSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    def get(self, request, id):
+        user = get_object_or_404(User, pk=id)
+        serializer = self.serializer_class(instance=user)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 class GetUsersView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]

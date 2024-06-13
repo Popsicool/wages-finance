@@ -11,6 +11,7 @@ urlpatterns = [
     path('reset_password/', SetNewPasswordAPIView.as_view(), name='admin_reset_password'),
     path('new_investment/', views.AdminCreateInvestment.as_view(), name='new_investment'),
     path('users/', views.GetUsersView.as_view(), name='new_investment'),
+    path('user/<id>', views.GetSingleUserView.as_view(), name='new_investment'),
     path('withdrawal/', views.GetWithdrawals.as_view(), name='new_investment'),
     path('accept_withdrawal/<id>/', views.ApproveWithdrawal.as_view(), name='accept_withdrawal'),
     path('reject_withdrawal/<id>/', views.RejectWithdrawal.as_view(), name='reject_withdrawal'),

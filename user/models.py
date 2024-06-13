@@ -15,7 +15,7 @@ class UserManager(BaseUserManager):
         user.save()
         return user
 
-    def create_user(self, firstname, lastname,  email, phone,referal_code, password=None):
+    def create_user(self, firstname, lastname,  email, phone,referal_code, password=None, **extra_fields):
         if email is None:
             raise TypeError('Users should have an Email')
         if firstname is None:
@@ -25,7 +25,7 @@ class UserManager(BaseUserManager):
         if phone is None:
             raise TypeError('Users should have a phone number')
 
-        user = self.model(firstname=firstname, lastname=lastname, email=self.normalize_email(email), phone=phone, referal_code=referal_code)
+        user = self.model(firstname=firstname, lastname=lastname, email=self.normalize_email(email), phone=phone, referal_code=referal_code, **extra_fields)
         user.set_password(password)
         user.save()
         return user

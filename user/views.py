@@ -77,6 +77,7 @@ class OneTimeSubscription(generics.GenericAPIView):
         
         with transaction.atomic():
             user.is_subscribed = True
+            user.tier = "T1"
             user.wallet_balance -= 5000
             mem_id = 'WF-' + ''.join(random.sample('0123456789', 9))
             new_coop = CoporativeMembership.objects.create(user = user, membership_id = mem_id)
