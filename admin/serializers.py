@@ -1,9 +1,15 @@
 from rest_framework import serializers
+from django.db.models import Sum, Count, F
 from user.models import (
     InvestmentPlan,
     User,
     Withdrawal,
-    ForgetPasswordToken)
+    ForgetPasswordToken,
+    UserSavings,
+    UserInvestments,
+    Loan,
+    Activities
+    )
 from django.contrib import auth
 from rest_framework.exceptions import AuthenticationFailed, ParseError
 from django.utils import timezone
@@ -167,19 +173,48 @@ class GetSingleUserSerializer(serializers.ModelSerializer):
     membership_status = serializers.SerializerMethodField()
     membership_id = serializers.SerializerMethodField()
     profile_picture = serializers.SerializerMethodField()
+    total_savings = serializers.SerializerMethodField()
+    total_investment = serializers.SerializerMethodField()
+    outstanding_loan = serializers.SerializerMethodField()
+    referal_count = serializers.SerializerMethodField()
+    transactions = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ["firstname", "lastname", "phone", "email","profile_picture", "wallet_balance", "tier", "created_at", "membership_id", "membership_status" ]
+        fields = [
+            "firstname", "lastname", "phone", "email", "profile_picture",
+            "wallet_balance", "tier", "created_at", "referal_count",
+            "membership_id", "membership_status", "total_savings", "outstanding_loan",
+            "total_investment", "wages_point", "referal_balance", "total_referal_balance",
+            "transactions"
+        ]
+
     def get_membership_status(self, obj):
-        if obj.is_subscribed:
-            return "ACTIVE"
-        return "INACTIVE"
+        return "ACTIVE" if obj.is_subscribed else "INACTIVE"
+
     def get_membership_id(self, obj):
-        if obj.is_subscribed:
-            return obj.coporativemembership.membership_id
-        return None
+        return obj.coporativemembership.membership_id if obj.is_subscribed else None
+
     def get_profile_picture(self, obj):
         return obj.profile_picture.url if obj.profile_picture else None
+
+    def get_total_investment(self, obj):
+        total_investment = UserInvestments.objects.filter(user=obj).aggregate(total=Sum('amount'))['total']
+        return total_investment if total_investment is not None else 0
+
+    def get_outstanding_loan(self, obj):
+        outstanding_loan = Loan.objects.filter(user=obj, status__in=["APPROVED", "OVER-DUE"]).aggregate(total=Sum('balance'))['total']
+        return outstanding_loan if outstanding_loan is not None else 0
+
+    def get_total_savings(self, obj):
+        total_savings = UserSavings.objects.filter(user=obj).aggregate(total=Sum('saved'))['total']
+        return total_savings if total_savings is not None else 0
+
+    def get_referal_count(self, obj):
+        return User.objects.filter(referal=obj).count()
+    def get_transactions(self, obj):
+        
+        pass
 class GetWithdrawalSerializers(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
     class Meta:

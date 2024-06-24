@@ -68,6 +68,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     wages_point = models.IntegerField(default=0)
     referal_code = models.CharField(max_length=10, blank=True, null=True)
     referal_balance = models.BigIntegerField(default=0)
+    total_referal_balance = models.BigIntegerField(default=0)
     bvn = models.CharField(max_length=15, blank=True, null=True)
     bvn_verify_details = models.JSONField(blank=True, null=True)
     nin = models.CharField(max_length=15, blank=True, null=True)

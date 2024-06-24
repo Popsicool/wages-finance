@@ -277,3 +277,18 @@ class RejectWithdrawal(generics.GenericAPIView):
             withdraw.save()
             withdraw_user.save()
             return Response(data={"message":"success"}, status=status.HTTP_200_OK)
+
+class SuspendAccount(views.APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    def get(self, request, id):
+        user = get_object_or_404(User, pk=id)
+        user.is_active = False
+        user.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+class UnSuspendAccount(views.APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    def get(self, request, id):
+        user = get_object_or_404(User, pk=id)
+        user.is_active = True
+        user.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
