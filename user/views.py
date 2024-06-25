@@ -87,6 +87,7 @@ class OneTimeSubscription(generics.GenericAPIView):
             referal = user.referal
             if referal:
                 referal.referal_balance += 2000
+                referal.total_referal_balance += 2000
                 ref_notification = Notification.objects.create(
                     user=referal,
                     title = "Referal bonus",

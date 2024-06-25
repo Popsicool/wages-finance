@@ -1,7 +1,7 @@
 from rest_framework import (permissions, generics, views, filters)
 from authentication.permissions import IsAdministrator
 from rest_framework.response import Response
-from user.models import User, Withdrawal
+from user.models import User, Withdrawal, CoporativeMembership
 from django.contrib.auth.models import Group
 from drf_yasg.utils import swagger_auto_schema
 from notification.models import Notification
@@ -16,6 +16,7 @@ from .serializers import (
     RequestPasswordResetEmailSerializer,
     EmailCodeVerificationSerializer,
     GetSingleUserSerializer,
+    GetCooperativeUsersSerializer,
 )
 import random
 import string
@@ -23,6 +24,7 @@ from utils.email import SendMail
 from rest_framework import status
 from django.db import transaction
 from django.utils import timezone
+from django.db.models import Sum
 from datetime import datetime
 from django.shortcuts import get_object_or_404
 import re
@@ -135,34 +137,27 @@ class GetUsersView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     serializer_class = GetUsersSerializers
     filter_backends = [filters.SearchFilter]
-    search_fields = ["id", "firstname","lastname","email"]
+    search_fields = ["id", "firstname", "lastname", "email"]
+
     @swagger_auto_schema(
         manual_parameters=[
             openapi.Parameter('status', openapi.IN_QUERY, description='Filter by subscription status', type=openapi.TYPE_STRING, enum=['active', 'inactive'], required=False),
-            # openapi.Parameter('start_date', openapi.IN_QUERY, description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
-            # openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
         ]
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
+
     def list(self, request, *args, **kwargs):
-        # param2 = self.request.query_params.get('start_date', None)
-        # param3 = self.request.query_params.get('end_date', None)
-        # if param2 and not is_valid_date_format(param2):
-        #     return Response(data = {'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
-        # if param3 and not is_valid_date_format(param3):
-        #     return Response(data = {'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
-        queryset = self.get_queryset()
+        queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.serializer_class(page, many=True)
             return self.get_paginated_response(serializer.data)
         serializer = self.serializer_class(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
     def get_queryset(self):
         param1 = self.request.query_params.get('status', None)
-        # param2 = self.request.query_params.get('start_date', None)
-        # param3 = self.request.query_params.get('end_date', None)
         queryset = User.objects.filter(role="USERS").order_by('-created_at')
         if param1:
             param1 = param1.strip().lower()
@@ -170,19 +165,7 @@ class GetUsersView(generics.ListAPIView):
                 queryset = queryset.filter(is_subscribed=True)
             elif param1 == 'inactive':
                 queryset = queryset.filter(is_subscribed=False)
-        # if param2:
-        #     start_date = datetime.strptime(param2, '%Y-%m-%d')
-        #     if timezone.is_naive(start_date):
-        #         start_date = timezone.make_aware(start_date, timezone.get_default_timezone())
-        #     queryset = queryset.filter(created_at__gte=start_date)
-        # if param3:
-        #     end_date = datetime.strptime(param3, '%Y-%m-%d')
-        #     if timezone.is_naive(end_date):
-        #         end_date = timezone.make_aware(end_date, timezone.get_default_timezone())
-        #     queryset = queryset.filter(created_at__lte=end_date)
-        # search_param = self.request.query_params.get('search', None)
         return queryset
-
 class GetWithdrawals(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     serializer_class = GetWithdrawalSerializers
@@ -292,3 +275,38 @@ class UnSuspendAccount(views.APIView):
         user.is_active = True
         user.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class GetCooperativeUsersView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    serializer_class = GetCooperativeUsersSerializer
+    filter_backends = [filters.SearchFilter]
+    queryset = CoporativeMembership.objects.filter(is_active=True).order_by('-date_joined')
+    search_fields = ["user__firstname", "user__lastname", "user__email"]
+
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class AdminCoporateSavingsDashboard(views.APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+
+    def get(self, request):
+        coporative_members = CoporativeMembership.objects.filter(is_active=True)
+        total_balance = coporative_members.aggregate(total=Sum('balance'))['total'] or 0
+        active_members_count = coporative_members.count()
+
+        resp = {
+            "total": total_balance,
+            "count": active_members_count
+        }
+
+        return Response(resp, status=status.HTTP_200_OK)

@@ -8,7 +8,8 @@ from user.models import (
     UserSavings,
     UserInvestments,
     Loan,
-    Activities
+    Activities,
+    CoporativeMembership
     )
 from django.contrib import auth
 from rest_framework.exceptions import AuthenticationFailed, ParseError
@@ -169,6 +170,11 @@ class GetUsersSerializers(serializers.ModelSerializer):
         if obj.is_subscribed:
             return "ACTIVE"
         return "INACTIVE"
+
+class ActivitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Activities
+        fields = ['title', 'activity_type', 'created_at', 'amount']
 class GetSingleUserSerializer(serializers.ModelSerializer):
     membership_status = serializers.SerializerMethodField()
     membership_id = serializers.SerializerMethodField()
@@ -193,28 +199,33 @@ class GetSingleUserSerializer(serializers.ModelSerializer):
         return "ACTIVE" if obj.is_subscribed else "INACTIVE"
 
     def get_membership_id(self, obj):
-        return obj.coporativemembership.membership_id if obj.is_subscribed else None
+        return getattr(obj.coporativemembership, 'membership_id', None) if obj.is_subscribed else None
 
     def get_profile_picture(self, obj):
         return obj.profile_picture.url if obj.profile_picture else None
 
+    def aggregate_field(self, model, user, field, filter_kwargs=None):
+        if filter_kwargs is None:
+            filter_kwargs = {}
+        filter_kwargs['user'] = user
+        total = model.objects.filter(**filter_kwargs).aggregate(total=Sum(field)).get('total', 0)
+        return total if total is not None else 0
+
     def get_total_investment(self, obj):
-        total_investment = UserInvestments.objects.filter(user=obj).aggregate(total=Sum('amount'))['total']
-        return total_investment if total_investment is not None else 0
+        return self.aggregate_field(UserInvestments, obj, 'amount')
 
     def get_outstanding_loan(self, obj):
-        outstanding_loan = Loan.objects.filter(user=obj, status__in=["APPROVED", "OVER-DUE"]).aggregate(total=Sum('balance'))['total']
-        return outstanding_loan if outstanding_loan is not None else 0
+        return self.aggregate_field(Loan, obj, 'balance', {'status__in': ["APPROVED", "OVER-DUE"]})
 
     def get_total_savings(self, obj):
-        total_savings = UserSavings.objects.filter(user=obj).aggregate(total=Sum('saved'))['total']
-        return total_savings if total_savings is not None else 0
+        return self.aggregate_field(UserSavings, obj, 'saved')
 
     def get_referal_count(self, obj):
         return User.objects.filter(referal=obj).count()
+
     def get_transactions(self, obj):
-        
-        pass
+        activities = Activities.objects.filter(user=obj).order_by('-created_at')[:5]
+        return ActivitySerializer(activities, many=True).data
 class GetWithdrawalSerializers(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
     class Meta:
@@ -231,4 +242,18 @@ class CoporativeUsersSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id","firstname", "lastname", "phone", "email", "status"]
-    
+
+
+class GetCooperativeUsersSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source='user.id')
+    name = serializers.SerializerMethodField()
+    email = serializers.EmailField(source='user.email')
+    coporative_balance = serializers.FloatField(source='balance')
+    phone = serializers.CharField(source='user.phone')
+
+    class Meta:
+        model = CoporativeMembership
+        fields = ["id", "name", "email", "coporative_balance", "phone"]
+
+    def get_name(self, obj):
+        return f"{obj.user.firstname} {obj.user.lastname}"

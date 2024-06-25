@@ -15,6 +15,8 @@ urlpatterns = [
     path('suspend/<id>', views.SuspendAccount.as_view(), name='suspend_account'),
     path('unsuspend/<id>', views.UnSuspendAccount.as_view(), name='suspend_account'),
     path('withdrawal/', views.GetWithdrawals.as_view(), name='new_investment'),
+    path('active_coporative_members/', views.GetCooperativeUsersView.as_view(), name='active_coporative_members'),
+    path('coporative_dashboard/', views.AdminCoporateSavingsDashboard.as_view(), name='coporative_dashboard'),
     path('accept_withdrawal/<id>/', views.ApproveWithdrawal.as_view(), name='accept_withdrawal'),
     path('reject_withdrawal/<id>/', views.RejectWithdrawal.as_view(), name='reject_withdrawal'),
 ]
