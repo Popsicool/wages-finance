@@ -201,9 +201,16 @@ class UserInvestments(models.Model):
     def __str__(self):
         return f"{self.user.lastname} - {self.investment.title} - {self.shares} - {self.amount}"
 
+SAVINGS_TYPES = [
+    ("BIRTHDAY", "Birthday"),
+    ("CAR-PURCHASE", "Car purchase"),
+    ("VACATION", "Vacations"),
+    ("GARGET-PURCHASE", "Garget purchase"),
+    ("MISCELLANEOUS", "Miscellaneous")
+]
 class UserSavings(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_savings')
-    title = models.TextField()
+    title = models.CharField(max_length=35, choices=SAVINGS_TYPES, default=SAVINGS_TYPES[0][0])
     amount = models.BigIntegerField()
     saved = models.BigIntegerField(default=0)
     start_date = models.DateField()

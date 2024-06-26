@@ -257,3 +257,40 @@ class GetCooperativeUsersSerializer(serializers.ModelSerializer):
 
     def get_name(self, obj):
         return f"{obj.user.firstname} {obj.user.lastname}"
+
+class SavingsTypeSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    phone = serializers.CharField(source='user.phone')
+    email = serializers.EmailField(source='user.email')
+    class Meta:
+        model = UserSavings
+        fields = ["id", "name", "phone", "email", "saved"]
+    def get_name(self, obj):
+        return f"{obj.user.firstname} {obj.user.lastname}"
+
+class SingleSavingsSerializer(serializers.ModelSerializer):
+    amount_per_savings = serializers.SerializerMethodField()
+    class  Meta:
+        model = UserSavings
+        fields = ["title", "user", "amount", "saved", "frequency", "start_date", "end_date", "amount_per_savings"]
+    def get_amount_per_savings(self, obj):
+        start_date = obj.start_date
+        end_date = obj.end_date
+        amount = obj.amount
+        frequency = obj.frequency
+
+        days_diff = (end_date - start_date).days
+
+        if frequency == 'DAILY':
+            number_of_periods = days_diff
+        elif frequency == 'WEEKLY':
+            number_of_periods = days_diff // 7
+        elif frequency == 'MONTHLY':
+            number_of_periods = days_diff // 30  # Approximate months, you can refine it as needed
+        else:
+            return None  # In case frequency is not recognized
+
+        if number_of_periods == 0:  # To handle division by zero
+            return amount
+
+        return amount / number_of_periods

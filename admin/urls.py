@@ -16,7 +16,10 @@ urlpatterns = [
     path('unsuspend/<id>', views.UnSuspendAccount.as_view(), name='suspend_account'),
     path('withdrawal/', views.GetWithdrawals.as_view(), name='new_investment'),
     path('active_coporative_members/', views.GetCooperativeUsersView.as_view(), name='active_coporative_members'),
-    path('coporative_dashboard/', views.AdminCoporateSavingsDashboard.as_view(), name='coporative_dashboard'),
+    path('coporative_stats/', views.AdminCoporateSavingsDashboard.as_view(), name='admin_coporative_dashboard'),
+    path('savings_stats/', views.AdminSavingsStatsView.as_view(), name='admin_savings_dashboard'),
+    path('savings/<str:name>/', views.SavingsType.as_view(), name='admin_savings_type'),
+    path('single_savings/<str:id>/', views.AdminSingleSavings.as_view(), name='admin_single_savings'),
     path('accept_withdrawal/<id>/', views.ApproveWithdrawal.as_view(), name='accept_withdrawal'),
     path('reject_withdrawal/<id>/', views.RejectWithdrawal.as_view(), name='reject_withdrawal'),
 ]

@@ -1,11 +1,16 @@
 from rest_framework import (permissions, generics, views, filters)
 from authentication.permissions import IsAdministrator
 from rest_framework.response import Response
-from user.models import User, Withdrawal, CoporativeMembership
+from user.models import (User,
+                         Withdrawal,
+                         CoporativeMembership,
+                         UserSavings)
 from django.contrib.auth.models import Group
 from drf_yasg.utils import swagger_auto_schema
 from notification.models import Notification
+from django.db.models import Sum, Count, Case, When, Value, BooleanField, Q
 from drf_yasg import openapi
+from utils.pagination import CustomPagination
 from .serializers import (
     AdminLoginSerializer,
     AdminInviteSerializer,
@@ -17,6 +22,8 @@ from .serializers import (
     EmailCodeVerificationSerializer,
     GetSingleUserSerializer,
     GetCooperativeUsersSerializer,
+    SavingsTypeSerializer,
+    SingleSavingsSerializer
 )
 import random
 import string
@@ -310,3 +317,63 @@ class AdminCoporateSavingsDashboard(views.APIView):
         }
 
         return Response(resp, status=status.HTTP_200_OK)
+
+class AdminSavingsStatsView(views.APIView):
+    # permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Aggregating data
+        savings_data = UserSavings.objects.aggregate(
+            unique_users_active_savings=Count('user', distinct=True, filter=Q(is_active=True)),
+            total_saved_active=Sum('saved', filter=Q(is_active=True)),
+            total_saved_all=Sum('saved'),
+            savings_count_per_title=Count('id', distinct=True),
+            unique_users_per_title=Count('user', distinct=True),
+            total_saved_per_title=Sum('saved')
+        )
+
+        # Separate query to get counts and sums grouped by title
+        title_aggregates = UserSavings.objects.values('title').annotate(
+            savings_count_per_title=Count('id'),
+            unique_users_per_title=Count('user', distinct=True),
+            total_saved_per_title=Sum('saved')
+        )
+
+        # Formatting the title aggregates into a dictionary
+        title_data = {}
+        for item in title_aggregates:
+            title_data[item['title']] = {
+                'savings_count': item['savings_count_per_title'],
+                'unique_users': item['unique_users_per_title'],
+                'total_saved': item['total_saved_per_title']
+            }
+
+        data = {
+            'unique_users_active_savings': savings_data['unique_users_active_savings'],
+            'total_saved_active': savings_data['total_saved_active'],
+            'total_saved_all': savings_data['total_saved_all'],
+            'title_data': title_data
+        }
+
+        return Response(data)
+
+class SavingsType(generics.GenericAPIView):
+    serializer_class = SavingsTypeSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    pagination_class = CustomPagination
+    def get(self, request, name):
+        queryset = UserSavings.objects.filter(title=name.strip().upper()).order_by("-created_at")
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+class AdminSingleSavings(views.APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    serializer_class = SingleSavingsSerializer
+    def get(self, request, id):
+        queryset = get_object_or_404(UserSavings, pk=id)
+        serializer = self.serializer_class(queryset)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)

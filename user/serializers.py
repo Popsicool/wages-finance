@@ -62,10 +62,14 @@ class NewSavingsSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         start_date = attrs.get("start_date")
         end_date = attrs.get("end_date")
+        title = attrs.get("title")
         frequency = attrs.get("frequency").strip().upper()
         if frequency not in ["DAILY", "WEEKLY", "MONTHLY"]:
             raise serializers.ValidationError(
                 'Frequency must be one of "DAILY", "WEEKLY" or "MONTHLY"')
+        if title not in ["BIRTHDAY", "CAR-PURCHASE", "VACATION", "GARGET-PURCHASE", "MISCELLANEOUS"]:
+            raise serializers.ValidationError(
+                'Title must be one of "BIRTHDAY", "CAR-PURCHASE", "VACATION", "GARGET-PURCHASE" or "MISCELLANEOUS"')
         #! check past date
         attrs["frequency"] = frequency
         return attrs
