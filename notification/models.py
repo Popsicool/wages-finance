@@ -5,7 +5,7 @@ from user.models import User
 NOTIFICATION_TYPE = [
     ("EARNING", "User got earnings"),
     ("DIVIDEND", "User receive dividend on investment"),
-    ("LOAN-GRANTED", "Loan request for user granted"),
+    ("LOAN-UPDATE", "Update on loan request"),
     ("USER-TARGET", "Notification for user on their savings target")
 ]
 NOTIFICATION_STATUS = [

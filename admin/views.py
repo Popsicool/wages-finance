@@ -4,7 +4,11 @@ from rest_framework.response import Response
 from user.models import (User,
                          Withdrawal,
                          CoporativeMembership,
-                         UserSavings)
+                         UserSavings,
+                         InvestmentPlan,
+                         UserInvestments,
+                         Loan
+                         )
 from django.contrib.auth.models import Group
 from drf_yasg.utils import swagger_auto_schema
 from notification.models import Notification
@@ -23,7 +27,8 @@ from .serializers import (
     GetSingleUserSerializer,
     GetCooperativeUsersSerializer,
     SavingsTypeSerializer,
-    SingleSavingsSerializer
+    SingleSavingsSerializer,
+    AdminLoanList,
 )
 import random
 import string
@@ -32,20 +37,21 @@ from rest_framework import status
 from django.db import transaction
 from django.utils import timezone
 from django.db.models import Sum
-from datetime import datetime
+from datetime import datetime, date
 from django.shortcuts import get_object_or_404
 import re
 # Create your views here.
+
 
 def generate_random_password(length=10):
     characters = string.ascii_letters + string.digits + string.punctuation
     password = ''.join(random.choice(characters) for _ in range(length))
     return password
 
+
 def is_valid_date_format(date_string):
     pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
     return bool(pattern.match(date_string))
-
 
 
 class AdminLoginView(generics.GenericAPIView):
@@ -56,6 +62,7 @@ class AdminLoginView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
         return Response(validated_data, status=status.HTTP_200_OK)
+
 
 class RequestPasswordResetEmailView(generics.GenericAPIView):
     serializer_class = RequestPasswordResetEmailSerializer
@@ -75,18 +82,22 @@ class RequestPasswordResetEmailView(generics.GenericAPIView):
             'message': 'we have sent you a link to reset your password'
         }, status=status.HTTP_200_OK)
 
+
 class VerifyEmailResetCode(generics.GenericAPIView):
     serializer_class = EmailCodeVerificationSerializer
+
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         return Response(data=data, status=status.HTTP_200_OK)
 
+
 class AdminInviteView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     serializer_class = AdminInviteSerializer
     queryset = User.objects.filter()
+
     def post(self, request):
         serializer = AdminInviteSerializer(data=request.data, many=True)
         if serializer.is_valid():
@@ -103,7 +114,8 @@ class AdminInviteView(generics.GenericAPIView):
                     continue
                 password = generate_random_password()
                 name = email.split('@')
-                new_admin = User.objects.create(email=email, firstname=name[0], lastname=name[0],role="ADMIN")
+                new_admin = User.objects.create(
+                    email=email, firstname=name[0], lastname=name[0], role="ADMIN")
                 new_admin.set_password(password)
                 new_admin.is_staff = True
                 new_admin.is_verified = True
@@ -126,19 +138,24 @@ class AdminInviteView(generics.GenericAPIView):
 class AdminCreateInvestment(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     serializer_class = AdminCreateInvestmentSerializer
+
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         with transaction.atomic():
             serializer.save()
-            return Response(data=serializer.data, status= status.HTTP_201_CREATED)
+            return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+
+
 class GetSingleUserView(generics.GenericAPIView):
     serializer_class = GetSingleUserSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+
     def get(self, request, id):
         user = get_object_or_404(User, pk=id)
         serializer = self.serializer_class(instance=user)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
+
 
 class GetUsersView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
@@ -148,7 +165,8 @@ class GetUsersView(generics.ListAPIView):
 
     @swagger_auto_schema(
         manual_parameters=[
-            openapi.Parameter('status', openapi.IN_QUERY, description='Filter by subscription status', type=openapi.TYPE_STRING, enum=['active', 'inactive'], required=False),
+            openapi.Parameter('status', openapi.IN_QUERY, description='Filter by subscription status',
+                              type=openapi.TYPE_STRING, enum=['active', 'inactive'], required=False),
         ]
     )
     def get(self, request, *args, **kwargs):
@@ -173,25 +191,32 @@ class GetUsersView(generics.ListAPIView):
             elif param1 == 'inactive':
                 queryset = queryset.filter(is_subscribed=False)
         return queryset
+
+
 class GetWithdrawals(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     serializer_class = GetWithdrawalSerializers
+
     @swagger_auto_schema(
         manual_parameters=[
-            openapi.Parameter('status', openapi.IN_QUERY, description='Filter by status', type=openapi.TYPE_STRING, enum=['PENDING', 'REJECTED', 'PROCESSING', 'SUCCESS', 'FAILED'], required=False),
-            openapi.Parameter('start_date', openapi.IN_QUERY, description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('status', openapi.IN_QUERY, description='Filter by status', type=openapi.TYPE_STRING, enum=[
+                              'PENDING', 'REJECTED', 'PROCESSING', 'SUCCESS', 'FAILED'], required=False),
+            openapi.Parameter('start_date', openapi.IN_QUERY,
+                              description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)',
+                              type=openapi.TYPE_STRING, required=False),
         ]
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
+
     def list(self, request, *args, **kwargs):
         param2 = self.request.query_params.get('start_date', None)
         param3 = self.request.query_params.get('end_date', None)
         if param2 and not is_valid_date_format(param2):
-            return Response(data = {'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(data={'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
         if param3 and not is_valid_date_format(param3):
-            return Response(data = {'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
         queryset = self.get_queryset()
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -199,6 +224,7 @@ class GetWithdrawals(generics.ListAPIView):
             return self.get_paginated_response(serializer.data)
         serializer = self.serializer_class(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
     def get_queryset(self):
         param1 = self.request.query_params.get('status', None)
         param2 = self.request.query_params.get('start_date', None)
@@ -210,39 +236,45 @@ class GetWithdrawals(generics.ListAPIView):
         if param2:
             start_date = datetime.strptime(param2, '%Y-%m-%d')
             if timezone.is_naive(start_date):
-                start_date = timezone.make_aware(start_date, timezone.get_default_timezone())
+                start_date = timezone.make_aware(
+                    start_date, timezone.get_default_timezone())
             queryset = queryset.filter(created_at__gte=start_date)
         if param3:
             end_date = datetime.strptime(param3, '%Y-%m-%d')
             if timezone.is_naive(end_date):
-                end_date = timezone.make_aware(end_date, timezone.get_default_timezone())
+                end_date = timezone.make_aware(
+                    end_date, timezone.get_default_timezone())
             queryset = queryset.filter(created_at__lte=end_date)
         # search_param = self.request.query_params.get('search', None)
         return queryset
 
+
 class ApproveWithdrawal(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+
     def get(self, request, id):
         user = request.user
         withdraw = get_object_or_404(Withdrawal, pk=id)
         if withdraw.status != "PENDING":
             return Response(data={"message": "Withdrawal not in pending state"}, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():
-            #TODO call safehaven api
+            # TODO call safehaven api
             withdraw.status = "PROCESSING"
             withdraw.admin_user = user
             withdraw.save()
             new_notification = Notification.objects.create(
-                user = withdraw.user,
-                title = "Withdrawal Approved",
-                text = f"Your withdrawal request of {withdraw.amount} has been approved"
+                user=withdraw.user,
+                title="Withdrawal Approved",
+                text=f"Your withdrawal request of {withdraw.amount} has been approved"
             )
             new_notification.save()
         return Response(data={"message": "success"}, status=status.HTTP_200_OK)
 
+
 class RejectWithdrawal(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     serializer_class = RejectionReason
+
     def post(self, request, id):
         user = request.user
         withdraw = get_object_or_404(Withdrawal, pk=id)
@@ -257,26 +289,31 @@ class RejectWithdrawal(generics.GenericAPIView):
             withdraw.admin_user = user
             withdraw_user = withdraw.user
             withdraw_user.wallet_balance += withdraw.amount
-            #TODO add a notification
+            # TODO add a notification
             new_notification = Notification.objects.create(
-                user = withdraw_user,
-                title = "Withdrawal request rejected",
-                text = f"Your withdrawal request of {withdraw.amount} as been rejected because {reason}"
+                user=withdraw_user,
+                title="Withdrawal request rejected",
+                text=f"Your withdrawal request of {withdraw.amount} as been rejected because {reason}"
             )
             new_notification.save()
             withdraw.save()
             withdraw_user.save()
-            return Response(data={"message":"success"}, status=status.HTTP_200_OK)
+            return Response(data={"message": "success"}, status=status.HTTP_200_OK)
+
 
 class SuspendAccount(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+
     def get(self, request, id):
         user = get_object_or_404(User, pk=id)
         user.is_active = False
         user.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class UnSuspendAccount(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+
     def get(self, request, id):
         user = get_object_or_404(User, pk=id)
         user.is_active = True
@@ -288,12 +325,13 @@ class GetCooperativeUsersView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     serializer_class = GetCooperativeUsersSerializer
     filter_backends = [filters.SearchFilter]
-    queryset = CoporativeMembership.objects.filter(is_active=True).order_by('-date_joined')
+    queryset = CoporativeMembership.objects.filter(
+        is_active=True).order_by('-date_joined')
     search_fields = ["user__firstname", "user__lastname", "user__email"]
 
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
-    
+
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
@@ -303,12 +341,15 @@ class GetCooperativeUsersView(generics.ListAPIView):
         serializer = self.serializer_class(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
 class AdminCoporateSavingsDashboard(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
 
     def get(self, request):
-        coporative_members = CoporativeMembership.objects.filter(is_active=True)
-        total_balance = coporative_members.aggregate(total=Sum('balance'))['total'] or 0
+        coporative_members = CoporativeMembership.objects.filter(
+            is_active=True)
+        total_balance = coporative_members.aggregate(
+            total=Sum('balance'))['total'] or 0
         active_members_count = coporative_members.count()
 
         resp = {
@@ -318,13 +359,15 @@ class AdminCoporateSavingsDashboard(views.APIView):
 
         return Response(resp, status=status.HTTP_200_OK)
 
+
 class AdminSavingsStatsView(views.APIView):
     # permission_classes = [IsAuthenticated]
 
     def get(self, request):
         # Aggregating data
         savings_data = UserSavings.objects.aggregate(
-            unique_users_active_savings=Count('user', distinct=True, filter=Q(is_active=True)),
+            unique_users_active_savings=Count(
+                'user', distinct=True, filter=Q(is_active=True)),
             total_saved_active=Sum('saved', filter=Q(is_active=True)),
             total_saved_all=Sum('saved'),
             savings_count_per_title=Count('id', distinct=True),
@@ -357,12 +400,15 @@ class AdminSavingsStatsView(views.APIView):
 
         return Response(data)
 
+
 class SavingsType(generics.GenericAPIView):
     serializer_class = SavingsTypeSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     pagination_class = CustomPagination
+
     def get(self, request, name):
-        queryset = UserSavings.objects.filter(title=name.strip().upper()).order_by("-created_at")
+        queryset = UserSavings.objects.filter(
+            title=name.strip().upper()).order_by("-created_at")
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.serializer_class(page, many=True)
@@ -370,10 +416,183 @@ class SavingsType(generics.GenericAPIView):
         serializer = self.serializer_class(queryset, many=True)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
+
 class AdminSingleSavings(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     serializer_class = SingleSavingsSerializer
+
     def get(self, request, id):
         queryset = get_object_or_404(UserSavings, pk=id)
         serializer = self.serializer_class(queryset)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+
+class AdminInvestmentDashboards(views.APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'filter',
+                openapi.IN_QUERY,
+                description='Filter by duration',
+                type=openapi.TYPE_STRING,
+                enum=['TODAY'],
+                required=False
+            )
+        ]
+    )
+    def get(self, request):
+        filter_param = request.query_params.get('filter', None)
+        today = date.today()
+
+        all_investments = UserInvestments.objects.all()
+
+        total_investments = all_investments.aggregate(
+            total_amount=Sum('amount'))['total_amount'] or 0
+        count_of_investors = all_investments.count()
+
+        if filter_param and filter_param.strip().upper() == 'TODAY':
+            filter_investments = all_investments.filter(created_at=today)
+        else:
+            filter_investments = all_investments
+
+        total_by_filter = filter_investments.aggregate(
+            total_amount=Sum('amount'))['total_amount'] or 0
+        count_by_filter = filter_investments.count()
+
+        investment_plans = InvestmentPlan.objects.filter(is_active=True)
+        plans = []
+        for plan in investment_plans:
+            plan_data = {
+                'name': plan.title,
+                'quota': plan.quota,
+                'user_investments_count': plan.investment_type.count()
+            }
+            plans.append(plan_data)
+
+        data = {
+            'total_investments': total_investments,
+            'count_of_investors': count_of_investors,
+            'total_by_filter': total_by_filter,
+            'count_by_filter': count_by_filter,
+            'plans': plans
+        }
+
+        return Response(data)
+
+class AdminLoanDashboard(views.APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'filter',
+                openapi.IN_QUERY,
+                description='Filter by duration',
+                type=openapi.TYPE_STRING,
+                enum=['TODAY'],
+                required=False
+            )
+        ]
+    )
+    def get(self, request, *args, **kwargs):
+        filter_date = request.GET.get('filter', datetime.today().date())
+
+        # Convert filter_date to date object if it's a string
+        if isinstance(filter_date, str):
+            filter_date = datetime.strptime(filter_date, '%Y-%m-%d').date()
+
+        # Define the statuses
+        approved_statuses = ['approved', 'repaid', 'over-due']
+        pending_status = 'pending'
+        rejected_status = 'rejected'
+
+        #sum of repaid
+
+        # Calculate total amounts
+        total_amount = Loan.objects.filter(status__in=approved_statuses).aggregate(Sum('amount'))['amount__sum'] or 0
+        total_amount_filter = Loan.objects.filter(status__in=approved_statuses, date_approved=filter_date).aggregate(Sum('amount'))['amount__sum'] or 0
+
+        # Calculate unique loan beneficiaries
+        loan_beneficiary = Loan.objects.filter(status__in=approved_statuses).values('user').distinct().count()
+        loan_beneficiary_filter = Loan.objects.filter(status__in=approved_statuses, date_approved=filter_date).values('user').distinct().count()
+
+        # Count approved requests
+        approved_request = Loan.objects.filter(status__in=approved_statuses).count()
+        approved_filter = Loan.objects.filter(status__in=approved_statuses, date_approved=filter_date).count()
+
+        # Count pending requests
+        pending_request = Loan.objects.filter(status=pending_status).count()
+        pending_request_filter = Loan.objects.filter(status=pending_status, date_requested=filter_date).count()
+
+        # Count rejected requests
+        rejected_request = Loan.objects.filter(status=rejected_status).count()
+        rejected_request_filter = Loan.objects.filter(status=rejected_status, date_approved=filter_date).count()
+
+        # Prepare the response data
+        response_data = {
+            'total_amount': total_amount,
+            'total_amount_filter': total_amount_filter,
+            'loan_beneficiary': loan_beneficiary,
+            'loan_beneficiary_filter': loan_beneficiary_filter,
+            'approved_request': approved_request,
+            'approved_filter': approved_filter,
+            'pending_request': pending_request,
+            'pending_request_filter': pending_request_filter,
+            'rejected_request': rejected_request,
+            'rejected_request_filter': rejected_request_filter,
+        }
+
+        return Response(response_data)
+
+class AdminLoanOverview(generics.GenericAPIView):
+    serializer_class = AdminLoanList
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    pagination_class = CustomPagination
+    def get(self, request):
+        queryset = Loan.objects.all().order_by("-date_requested")
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+class AdminAcceptLoan(views.APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    def get(self, request, id):
+        loan = get_object_or_404(Loan, pk=id)
+        if loan.status != "PENDING":
+            return Response({"message":"loan not in pending state"}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            loan.status = "APPROVED"
+            user = loan.user
+            user.wallet_balance += loan.amount
+            new_notification = Notification.objects.create(
+                user=user, title="LOAN APPROVAL",
+                text=f"Your loan request for {loan.amount} has been approved by an admin",
+                type="LOAN-UPDATE"
+            )
+            new_notification.save()
+            loan.date_approved = datetime.today().date()
+            user.save()
+            loan.save()
+        return Response({"message": "success"}, status=status.HTTP_200_OK)
+class AdminRejectLoan(views.APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    def get(self, request, id):
+        loan = get_object_or_404(Loan, pk=id)
+        if loan.status != "PENDING":
+            return Response({"message":"loan not in pending state"}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            loan.status = "REJECTED"
+            loan.is_active = False
+            loan.date_approved = datetime.today().date()
+            loan.save()
+            new_notification = Notification.objects.create(
+                user=loan.user, title="LOAN REJECTED",
+                text=f"Your loan request for {loan.amount} has been rejected by an admin",
+                type="LOAN-UPDATE"
+            )
+            new_notification.save()
+        return Response({"message": "success"}, status=status.HTTP_200_OK)

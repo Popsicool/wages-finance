@@ -198,6 +198,8 @@ class UserInvestments(models.Model):
     amount = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     due_date = models.DateField()
+    class Meta:
+        unique_together = ('user', 'investment')
     def __str__(self):
         return f"{self.user.lastname} - {self.investment.title} - {self.shares} - {self.amount}"
 

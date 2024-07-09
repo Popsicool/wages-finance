@@ -18,8 +18,13 @@ urlpatterns = [
     path('active_coporative_members/', views.GetCooperativeUsersView.as_view(), name='active_coporative_members'),
     path('coporative_stats/', views.AdminCoporateSavingsDashboard.as_view(), name='admin_coporative_dashboard'),
     path('savings_stats/', views.AdminSavingsStatsView.as_view(), name='admin_savings_dashboard'),
+    path('investment_stats/', views.AdminInvestmentDashboards.as_view(), name='admin_investment_dashboard'),
     path('savings/<str:name>/', views.SavingsType.as_view(), name='admin_savings_type'),
     path('single_savings/<str:id>/', views.AdminSingleSavings.as_view(), name='admin_single_savings'),
     path('accept_withdrawal/<id>/', views.ApproveWithdrawal.as_view(), name='accept_withdrawal'),
     path('reject_withdrawal/<id>/', views.RejectWithdrawal.as_view(), name='reject_withdrawal'),
+    path("loan_dashboard", views.AdminLoanDashboard.as_view(), name="admin_loan_part"),
+    path("loan_overview", views.AdminLoanOverview.as_view(), name="admin_loan_overview"),
+    path("accept_loan/<id>", views.AdminAcceptLoan.as_view(), name="admin_accept_loan"),
+    path("reject_loan/<id>", views.AdminRejectLoan.as_view(), name="admin_reject_overview"),
 ]

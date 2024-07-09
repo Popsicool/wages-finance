@@ -238,6 +238,7 @@ class ReferalViews(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = ReferalSerializer
     def get(self, request):
+        #TODO order
         user = request.user
         serializer = self.serializer_class(user)
         return Response(data=serializer.data, status=status.HTTP_201_CREATED)

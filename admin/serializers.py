@@ -10,7 +10,7 @@ from user.models import (
     Loan,
     Activities,
     CoporativeMembership
-    )
+)
 from django.contrib import auth
 from rest_framework.exceptions import AuthenticationFailed, ParseError
 from django.utils import timezone
@@ -18,7 +18,6 @@ from datetime import timedelta
 from django.utils.encoding import smart_bytes
 from django.utils.http import urlsafe_base64_encode
 # from user.models import User
-
 
 
 class AdminLoginSerializer(serializers.Serializer):
@@ -31,13 +30,16 @@ class AdminLoginSerializer(serializers.Serializer):
         max_length=255, min_length=3, read_only=True)
     role = serializers.CharField(
         max_length=255, min_length=3, read_only=True)
+
     class Meta:
         model = User
-        fields = ["id","email","password", "firstname", "lastname", "role", "tokens"]
+        fields = ["id", "email", "password",
+                  "firstname", "lastname", "role", "tokens"]
+
     def validate(self, attrs):
         email = attrs.get('email', '')
         password = attrs.get('password', '')
-        valid_user = User.objects.filter(email = email).first()
+        valid_user = User.objects.filter(email=email).first()
         if not valid_user:
             raise AuthenticationFailed('invalid credentials, try again')
         if not valid_user.is_active:
@@ -57,6 +59,7 @@ class AdminLoginSerializer(serializers.Serializer):
             'role': [r.name for r in role] if role else None,
         }
 
+
 class RequestPasswordResetEmailSerializer(serializers.Serializer):
     email = serializers.EmailField(min_length=2)
     token = serializers.CharField(min_length=1, read_only=True)
@@ -75,12 +78,12 @@ class RequestPasswordResetEmailSerializer(serializers.Serializer):
         if not user.is_staff:
             raise AuthenticationFailed('invalid credentials, try again')
 
-
         # encode userId as base64 uuid
         # uid64 = urlsafe_base64_encode(smart_bytes(user.id))
 
         # generate reset token
-        token = User.objects.make_random_password(length=4, allowed_chars=f'0123456789')
+        token = User.objects.make_random_password(
+            length=4, allowed_chars=f'0123456789')
         token_expiry = timezone.now() + timedelta(minutes=6)
         forget_pass = ForgetPasswordToken.objects.filter(user=user).first()
         if not forget_pass:
@@ -134,7 +137,6 @@ class EmailCodeVerificationSerializer(serializers.ModelSerializer):
         return attrs
 
 
-
 class AdminInviteSerializer(serializers.Serializer):
     def validate(self, attrs):
         if not 'email' in attrs.keys():
@@ -145,11 +147,13 @@ class AdminInviteSerializer(serializers.Serializer):
                 "Role must be provided")
         return attrs
     email = serializers.EmailField()
-    role = serializers.ChoiceField(choices=["administrator", "accountant", "customer-support", "loan-managers"])
+    role = serializers.ChoiceField(
+        choices=["administrator", "accountant", "customer-support", "loan-managers"])
+
 
 class AdminCreateInvestmentSerializer(serializers.ModelSerializer):
     title = serializers.CharField(max_length=255)
-    image  = serializers.ImageField()
+    image = serializers.ImageField()
     start_date = serializers.DateField()
     end_date = serializers.DateField()
     quota = serializers.IntegerField()
@@ -158,23 +162,30 @@ class AdminCreateInvestmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = InvestmentPlan
-        fields = ["title", "image", "start_date", "end_date", "quota", "interest_rate", "unit_share"]
+        fields = ["title", "image", "start_date", "end_date",
+                  "quota", "interest_rate", "unit_share"]
 
 
 class GetUsersSerializers(serializers.ModelSerializer):
     membership_status = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ["id", "firstname", "lastname", "email", "membership_status","phone"]
+        fields = ["id", "firstname", "lastname",
+                  "email", "membership_status", "phone"]
+
     def get_membership_status(self, obj):
         if obj.is_subscribed:
             return "ACTIVE"
         return "INACTIVE"
 
+
 class ActivitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Activities
         fields = ['title', 'activity_type', 'created_at', 'amount']
+
+
 class GetSingleUserSerializer(serializers.ModelSerializer):
     membership_status = serializers.SerializerMethodField()
     membership_id = serializers.SerializerMethodField()
@@ -208,7 +219,8 @@ class GetSingleUserSerializer(serializers.ModelSerializer):
         if filter_kwargs is None:
             filter_kwargs = {}
         filter_kwargs['user'] = user
-        total = model.objects.filter(**filter_kwargs).aggregate(total=Sum(field)).get('total', 0)
+        total = model.objects.filter(
+            **filter_kwargs).aggregate(total=Sum(field)).get('total', 0)
         return total if total is not None else 0
 
     def get_total_investment(self, obj):
@@ -224,24 +236,33 @@ class GetSingleUserSerializer(serializers.ModelSerializer):
         return User.objects.filter(referal=obj).count()
 
     def get_transactions(self, obj):
-        activities = Activities.objects.filter(user=obj).order_by('-created_at')[:5]
+        activities = Activities.objects.filter(
+            user=obj).order_by('-created_at')[:5]
         return ActivitySerializer(activities, many=True).data
+
+
 class GetWithdrawalSerializers(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
+
     class Meta:
         model = Withdrawal
-        fields = ["id","amount", "bank_name", "account_number", "status", "message", "user"]
+        fields = ["id", "amount", "bank_name",
+                  "account_number", "status", "message", "user"]
+
     def get_user(self, obj):
         return f"{obj.user.firstname} {obj.user.lastname}"
+
 
 class RejectionReason(serializers.Serializer):
     reason = serializers.CharField()
 
+
 class CoporativeUsersSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ["id","firstname", "lastname", "phone", "email", "status"]
+        fields = ["id", "firstname", "lastname", "phone", "email", "status"]
 
 
 class GetCooperativeUsersSerializer(serializers.ModelSerializer):
@@ -258,21 +279,28 @@ class GetCooperativeUsersSerializer(serializers.ModelSerializer):
     def get_name(self, obj):
         return f"{obj.user.firstname} {obj.user.lastname}"
 
+
 class SavingsTypeSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     phone = serializers.CharField(source='user.phone')
     email = serializers.EmailField(source='user.email')
+
     class Meta:
         model = UserSavings
         fields = ["id", "name", "phone", "email", "saved"]
+
     def get_name(self, obj):
         return f"{obj.user.firstname} {obj.user.lastname}"
 
+
 class SingleSavingsSerializer(serializers.ModelSerializer):
     amount_per_savings = serializers.SerializerMethodField()
-    class  Meta:
+
+    class Meta:
         model = UserSavings
-        fields = ["title", "user", "amount", "saved", "frequency", "start_date", "end_date", "amount_per_savings"]
+        fields = ["title", "user", "amount", "saved", "frequency",
+                  "start_date", "end_date", "amount_per_savings"]
+
     def get_amount_per_savings(self, obj):
         start_date = obj.start_date
         end_date = obj.end_date
@@ -286,7 +314,8 @@ class SingleSavingsSerializer(serializers.ModelSerializer):
         elif frequency == 'WEEKLY':
             number_of_periods = days_diff // 7
         elif frequency == 'MONTHLY':
-            number_of_periods = days_diff // 30  # Approximate months, you can refine it as needed
+            # Approximate months, you can refine it as needed
+            number_of_periods = days_diff // 30
         else:
             return None  # In case frequency is not recognized
 
@@ -294,3 +323,45 @@ class SingleSavingsSerializer(serializers.ModelSerializer):
             return amount
 
         return amount / number_of_periods
+
+
+class AdminLoanList(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source='user.id')
+    firstname = serializers.CharField(source="user.firstname")
+    lastname = serializers.CharField(source="user.lastname")
+    phone = serializers.CharField(source="user.phone")
+    email = serializers.CharField(source="user.email")
+    guarantor_1 = serializers.SerializerMethodField()
+    guarantor_2 = serializers.SerializerMethodField()
+    profile_picture = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Loan
+        fields = ["id","user_id", "firstname", "lastname", "amount",
+                  "date_requested", "phone", "email","profile_picture",
+                  "duration_in_months", "interest_rate",
+                  "date_approved", "status", "guarantor_1", "guarantor_2"]
+    def get_guarantor_1(self, obj):
+        if not obj.guarantor1:
+            return None
+        details = {
+            "id": obj.guarantor1.id,
+            "name": f"{obj.guarantor1.firstname} {obj.guarantor1.lastname}",
+            "email": obj.guarantor1.email,
+            "phone": obj.guarantor1.phone,
+            "status": obj.guarantor1_agreed
+        }
+        return details
+    def get_guarantor_2(self, obj):
+        if not obj.guarantor2:
+            return None
+        details = {
+            "id": obj.guarantor2.id,
+            "name": f"{obj.guarantor2.firstname} {obj.guarantor2.lastname}",
+            "email": obj.guarantor2.email,
+            "phone": obj.guarantor2.phone,
+            "status": obj.guarantor2_agreed
+        }
+        return details
+    def get_profile_picture(self, obj):
+        return obj.user.profile_picture.url if obj.user.profile_picture else None

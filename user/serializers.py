@@ -34,6 +34,7 @@ class UserDashboardSerializer(serializers.ModelSerializer):
     def get_wallet(self, obj):
         return obj.wallet_balance
     def get_notifications(self, obj):
+        #TODO return count of notification
         return None
 
 class InvestmentPlanSerializer(serializers.ModelSerializer):

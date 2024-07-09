@@ -5,7 +5,8 @@ from .models import (User, EmailVerification,
                      UserSavings,
                      SafeHavenAPIDetails,
                      CoporativeMembership,
-                     ForgetPasswordToken
+                     ForgetPasswordToken,
+                     Loan
                      )
 # Register your models here.
 # admin.site.register(User)
@@ -26,3 +27,4 @@ admin.site.register(InvestmentPlan)
 admin.site.register(UserInvestments)
 admin.site.register(SafeHavenAPIDetails)
 admin.site.register(CoporativeMembership)
+admin.site.register(Loan)
