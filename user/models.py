@@ -184,6 +184,7 @@ class InvestmentPlan(models.Model):
     end_date = models.DateField()
     is_active = models.BooleanField(default=True)
     quota = models.IntegerField()
+    investors = models.IntegerField(default=0)
     interest_rate = models.IntegerField()
     unit_share = models.IntegerField()
     created_at                  = models.DateTimeField(auto_now_add=True)

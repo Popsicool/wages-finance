@@ -39,11 +39,13 @@ class UserDashboardSerializer(serializers.ModelSerializer):
 
 class InvestmentPlanSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
+    subscribers = serializers.SerializerMethodField()
 
     class Meta:
         model = InvestmentPlan
-        fields = ["title",  "unit_share", "interest_rate", "end_date", "image"]
-    
+        fields = ["id","title",  "unit_share", "interest_rate", "end_date", "image", "subscribers"]
+    def get_subscribers(self, obj):
+        return UserInvestments.objects.filter(investment=obj).count()
     def get_image(self, obj):
         return obj.image.url
 
@@ -163,3 +165,11 @@ class ReferalSerializer(serializers.ModelSerializer):
             }
             for person in refs
         ]
+
+
+class UserInvestment(serializers.Serializer):
+    unit = serializers.IntegerField()
+    pin = serializers.IntegerField(min_value=1000,max_value=9999)
+    class Meta:
+        model = InvestmentPlan
+        fields = ["unit", "id"]

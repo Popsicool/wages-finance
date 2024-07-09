@@ -18,12 +18,14 @@ from .serializers import (
     WithdrawalSeializer,
     LoanRequestSerializer,
     ReferalSerializer,
+    UserInvestment,
 )
 from .models import (Activities,
                      User,
                      InvestmentPlan,
                      UserSavings,
-                     CoporativeMembership
+                     CoporativeMembership,
+                     UserInvestments
                      )
 from utils.pagination import CustomPagination
 from django.db import transaction
@@ -261,3 +263,37 @@ class WithdrawReferalBonus(views.APIView):
             user.save()
             return Response(data={"message": "success"}, status = status.HTTP_200_OK)
 
+class UserInvest(generics.GenericAPIView):
+    serializer_class = UserInvestment
+    def post(self, request, id):
+        user = request.user
+        investment = get_object_or_404(InvestmentPlan, pk=id)
+        if not investment.is_active:
+            return Response(data={"message": "investment no more active"}, status=status.HTTP_400_BAD_REQUEST)
+        if investment.investors >= investment.quota:
+            return Response(data={"message": "investment no more active"}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = self.serializer_class(data = request.data)
+        serializer.is_valid(raise_exception=True)
+        pin = serializer.validated_data["pin"]
+        if user.pin != pin:
+            return Response(data={"message": "invalid pin"}, status=status.HTTP_401_UNAUTHORIZED)
+        unit = serializer.validated_data["unit"]
+        amount = unit * investment.unit_share
+        if user.wallet_balance < amount:
+            return Response(data={"message": "insufficient fund"}, status=status.HTTP_400_BAD_REQUEST)
+        user_coporative_balance = CoporativeMembership.objects.get(user = user).balance
+        if (amount * 0.2) > user_coporative_balance:
+            return Response(data={"message": "You must have more than 20 percent of the amount in your coporative balance"}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            investment.investors += 1
+            new_user_investment = UserInvestments.objects.create(
+                investment=investment,
+                user=user,
+                shares = unit,
+                amount = amount,
+                due_date = investment.end_date
+            )
+            new_user_investment.save()
+            if investment.quota == investment.investor:
+                pass
+        return Response(data=serializer.data, status=status.HTTP_201_CREATED)
