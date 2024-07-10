@@ -1,8 +1,9 @@
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser,BaseUserManager,PermissionsMixin
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.validators import MinLengthValidator, MinValueValidator, MaxValueValidator
 # Create your models here.
+
 
 class UserManager(BaseUserManager):
     def _create_user(self, email, password, **extra_fields):
@@ -15,7 +16,7 @@ class UserManager(BaseUserManager):
         user.save()
         return user
 
-    def create_user(self, firstname, lastname,  email, phone,referal_code, password=None, **extra_fields):
+    def create_user(self, firstname, lastname,  email, phone, referal_code, password=None, **extra_fields):
         if email is None:
             raise TypeError('Users should have an Email')
         if firstname is None:
@@ -25,12 +26,13 @@ class UserManager(BaseUserManager):
         if phone is None:
             raise TypeError('Users should have a phone number')
 
-        user = self.model(firstname=firstname, lastname=lastname, email=self.normalize_email(email), phone=phone, referal_code=referal_code, **extra_fields)
+        user = self.model(firstname=firstname, lastname=lastname, email=self.normalize_email(
+            email), phone=phone, referal_code=referal_code, **extra_fields)
         user.set_password(password)
         user.save()
         return user
 
-    def create_superuser(self,email, password=None, **extra_fields):
+    def create_superuser(self, email, password=None, **extra_fields):
         if password is None:
             raise TypeError('Password should not be none')
         user = self._create_user(email, password)
@@ -41,30 +43,37 @@ class UserManager(BaseUserManager):
         user.save()
         return user
 
+
 USER_ROLES = [
-            ("USERS","General Users"),
-            ("ADMIN","Admin users"),
-        ]
+    ("USERS", "General Users"),
+    ("ADMIN", "Admin users"),
+]
 TIERS_CHOICE = [
-            ("T0","Tier 0"),
-            ("T1","Tier 1"),
-            ("T2","Tier 2"),
-        ]
+    ("T0", "Tier 0"),
+    ("T1", "Tier 1"),
+    ("T2", "Tier 2"),
+]
+
 
 class User(AbstractBaseUser, PermissionsMixin):
-    firstname                   = models.CharField(max_length=255)
-    lastname                    = models.CharField(max_length=255)
-    account_number              = models.CharField(max_length=12, blank=True, null=True)
-    referal                     = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True)
-    email                       = models.EmailField(max_length=255, unique=True, db_index=True)
-    profile_picture             = models.ImageField(upload_to="profile_pic/", null=True, blank=True)
-    phone                       = models.CharField(max_length=255, unique=True, null=True, blank=True)
-    is_verified                 = models.BooleanField(default=False)
-    is_active                   = models.BooleanField(default=True)
-    is_staff                    = models.BooleanField(default=False)
+    firstname = models.CharField(max_length=255)
+    lastname = models.CharField(max_length=255)
+    account_number = models.CharField(max_length=12, blank=True, null=True)
+    referal = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True)
+    email = models.EmailField(max_length=255, unique=True, db_index=True)
+    profile_picture = models.ImageField(
+        upload_to="profile_pic/", null=True, blank=True)
+    phone = models.CharField(
+        max_length=255, unique=True, null=True, blank=True)
+    is_verified = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
     is_subscribed = models.BooleanField(default=False)
-    pin = models.IntegerField(validators=[MinValueValidator(1000), MaxValueValidator(9999)], blank=True, null=True)
-    wallet_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    pin = models.IntegerField(validators=[MinValueValidator(
+        1000), MaxValueValidator(9999)], blank=True, null=True)
+    wallet_balance = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0)
     wages_point = models.IntegerField(default=0)
     referal_code = models.CharField(max_length=10, blank=True, null=True)
     referal_balance = models.BigIntegerField(default=0)
@@ -73,18 +82,18 @@ class User(AbstractBaseUser, PermissionsMixin):
     bvn_verify_details = models.JSONField(blank=True, null=True)
     nin = models.CharField(max_length=15, blank=True, null=True)
     nin_verify_details = models.JSONField(blank=True, null=True)
-    tier                        = models.CharField(
+    tier = models.CharField(
         max_length=255,
-        choices= TIERS_CHOICE,
-        default= TIERS_CHOICE[0][0]
+        choices=TIERS_CHOICE,
+        default=TIERS_CHOICE[0][0]
     )
-    role                        = models.CharField(
+    role = models.CharField(
         max_length=255,
-        choices= USER_ROLES,
-        default= USER_ROLES[0][0]
+        choices=USER_ROLES,
+        default=USER_ROLES[0][0]
     )
-    created_at                  = models.DateTimeField(auto_now_add=True)
-    updated_at                  = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['firstname', 'lastname', 'phone']
 
@@ -102,6 +111,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     class Meta:
         db_table = "Users"
+
 
 class EmailVerification(models.Model):
     is_used = models.BooleanField(default=False)
@@ -145,18 +155,22 @@ SAVINGS_FREQUENCY_CHOICE = [
     ("MONTHLY", "Monthly contribution")
 ]
 
+
 class Activities(models.Model):
     title = models.CharField(max_length=250)
     amount = models.IntegerField()
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_activity')
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='user_activity')
     activity_type = models.CharField(
         max_length=255,
-        choices= ACTIVITIES_CHOICE,
-        default= ACTIVITIES_CHOICE[0][0]
+        choices=ACTIVITIES_CHOICE,
+        default=ACTIVITIES_CHOICE[0][0]
     )
     created_at = models.DateTimeField(auto_now_add=True)
+
     def __str__(self):
         return f"{self.amount} - {self.title} by {self.user.firstname} on {self.created_at}"
+
 
 WITHDRAWAL_STATUS = [
     ("PENDING", "Withdrawal yet to be approved"),
@@ -165,18 +179,26 @@ WITHDRAWAL_STATUS = [
     ("SUCCESS", "Withdrawal Successfully done"),
     ("FAILED", "Withdrawal failed on payment gateway")
 ]
+
+
 class Withdrawal(models.Model):
     amount = models.IntegerField()
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_withdrawal')
-    admin_user = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='user_withdrawal_approval', null=True, blank=True)
-    bank_name =  models.CharField()
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='user_withdrawal')
+    admin_user = models.ForeignKey(User, on_delete=models.SET_NULL,
+                                   related_name='user_withdrawal_approval', null=True, blank=True)
+    bank_name = models.CharField()
     account_number = models.CharField()
-    status = models.CharField(choices=WITHDRAWAL_STATUS, default=WITHDRAWAL_STATUS[0][0])
+    status = models.CharField(
+        choices=WITHDRAWAL_STATUS, default=WITHDRAWAL_STATUS[0][0])
     message = models.TextField(blank=True, null=True)
-    created_at                  = models.DateTimeField(auto_now_add=True)
-    updated_at                  = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
     def __str__(self):
         return f"{self.created_at} == {self.user.firstname} {self.user.lastname} == {self.amount} == {self.bank_name} == {self.account_number} == {self.status} "
+
+
 class InvestmentPlan(models.Model):
     title = models.CharField(max_length=255)
     image = models.ImageField(upload_to="investments/")
@@ -187,22 +209,38 @@ class InvestmentPlan(models.Model):
     investors = models.IntegerField(default=0)
     interest_rate = models.IntegerField()
     unit_share = models.IntegerField()
-    created_at                  = models.DateTimeField(auto_now_add=True)
-    updated_at                  = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
     def __str__(self):
         return f"{self.title} from {self.start_date} to {self.end_date}"
 
+
+USER_INVESTMENT_STATUS = [
+    ("ACTIVE", "Active Investment"),
+    ("MATURED", "Investment Matured, waiting for payout"),
+    ("PAID-OUT", "INvestment has been paid out")
+]
+
+
 class UserInvestments(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_investment')
-    investment = models.ForeignKey(InvestmentPlan, null=True, blank=True, on_delete=models.SET_NULL, related_name='investment_type')
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='user_investment')
+    investment = models.ForeignKey(InvestmentPlan, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name='investment_type')
     shares = models.IntegerField()
+    status = models.CharField(
+        max_length=20, choices=USER_INVESTMENT_STATUS, default=USER_INVESTMENT_STATUS[0][0])
     amount = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     due_date = models.DateField()
+
     class Meta:
         unique_together = ('user', 'investment')
+
     def __str__(self):
         return f"{self.user.lastname} - {self.investment.title} - {self.shares} - {self.amount}"
+
 
 SAVINGS_TYPES = [
     ("BIRTHDAY", "Birthday"),
@@ -211,9 +249,13 @@ SAVINGS_TYPES = [
     ("GARGET-PURCHASE", "Garget purchase"),
     ("MISCELLANEOUS", "Miscellaneous")
 ]
+
+
 class UserSavings(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_savings')
-    title = models.CharField(max_length=35, choices=SAVINGS_TYPES, default=SAVINGS_TYPES[0][0])
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='user_savings')
+    title = models.CharField(
+        max_length=35, choices=SAVINGS_TYPES, default=SAVINGS_TYPES[0][0])
     amount = models.BigIntegerField()
     saved = models.BigIntegerField(default=0)
     start_date = models.DateField()
@@ -225,8 +267,9 @@ class UserSavings(models.Model):
         default=SAVINGS_FREQUENCY_CHOICE[0][0]
     )
     is_active = models.BooleanField(default=True)
-    created_at                  = models.DateTimeField(auto_now_add=True)
-    updated_at                  = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
     def __str__(self):
         return f"{self.user.lastname} - {self.title} - {self.amount} - {self.start_date} - {self.end_date}"
 
@@ -236,11 +279,11 @@ class CoporativeMembership(models.Model):
     balance = models.BigIntegerField(default=0)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(auto_now_add=True)
-    updated_at                  = models.DateTimeField(auto_now=True)
-    membership_id = models.CharField(max_length=20,unique=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    membership_id = models.CharField(max_length=20, unique=True)
+
     def __str__(self):
         return f"{self.user.lastname} - {self.membership_id} - {self.balance} -{self.date_joined}"
-
 
 
 class SafeHavenAPIDetails(models.Model):
@@ -255,13 +298,18 @@ LOAN_STATUS = [
     ("PENDING", "Loan waiting for admin approval"),
     ("APPROVED", "Loan approved by admin"),
     ("REJECTED", "Loan Rejected by admin"),
-    ("REPAYED","Loan fully repayed"),
-    ("OVER-DUE","Loan overdued"),
+    ("REPAYED", "Loan fully repayed"),
+    ("OVER-DUE", "Loan overdued"),
 ]
+
+
 class Loan(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_loan")
-    guarantor1 = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="guaranter_1")
-    guarantor2 = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="guaranter_2")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="user_loan")
+    guarantor1 = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="guaranter_1")
+    guarantor2 = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="guaranter_2")
     guarantor1_agreed = models.BooleanField(default=False)
     guarantor2_agreed = models.BooleanField(default=False)
     amount = models.PositiveBigIntegerField()
@@ -269,13 +317,17 @@ class Loan(models.Model):
     balance = models.PositiveBigIntegerField(default=0)
     duration_in_months = models.PositiveIntegerField(default=6)
     interest_rate = models.PositiveIntegerField(default=10)
-    status = models.CharField(choices=LOAN_STATUS, default=LOAN_STATUS[0][0], max_length=10)
+    status = models.CharField(
+        choices=LOAN_STATUS, default=LOAN_STATUS[0][0], max_length=10)
     date_requested = models.DateTimeField(auto_now_add=True)
     date_approved = models.DateField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
+
     def save(self, *args, **kwargs):
         if self._state.adding:
-            self.balance = self.amount + (self.amount * (self.interest_rate / 100))
+            self.balance = self.amount + \
+                (self.amount * (self.interest_rate / 100))
         super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.user.lastname} - {self.balance} - {self.status}"
