@@ -11,7 +11,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.http import HttpResponsePermanentRedirect, HttpResponse
 from django.db import transaction
 
-from user.models import User, EmailVerification, TIERS_CHOICE
+from user.models import User, EmailVerification, TIERS_CHOICE, ForgetPasswordToken
 from .serializers import (
     SignupSerializer,
     ResendVerificationMailSerializer,
@@ -24,7 +24,7 @@ from .serializers import (
     VerifyBVNSerializer,
     UpdateNinSerializer,
     VerifyNINSerializer,
-    PhoneCodeVerificationSerializer
+    PhoneCodeVerificationSerializer,
 )
 from utils.email import SendMail
 from utils.sms import SendSMS

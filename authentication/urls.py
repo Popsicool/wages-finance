@@ -17,7 +17,8 @@ from .views import (
     VerifyBVNView,
     SetNinView,
     VerifyNINView,
-    VerifyPasswordResetCode
+    VerifyPasswordResetCode,
+
     )
 
 urlpatterns = [
@@ -41,5 +42,5 @@ urlpatterns = [
     path('verify_bvn/', VerifyBVNView.as_view(),
          name='set_bvn'),
     path('verify_nin/', VerifyNINView.as_view(),
-         name='set_bvn')
+         name='verify_bvn'),
 ]

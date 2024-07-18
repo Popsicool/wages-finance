@@ -227,3 +227,10 @@ class UserInvestmentHistory(serializers.ModelSerializer):
         rate = obj.investment.interest_rate
         total = (obj.amount * (rate / 100)) + obj.amount
         return total
+
+
+class VerifyResetPinTokenSerializer(serializers.Serializer):
+    token = serializers.CharField()
+class ChangePinSerializer(serializers.Serializer):
+    current_pin = serializers.IntegerField(min_value=1000, max_value=9999)
+    new_pin = serializers.IntegerField(min_value=1000, max_value=9999)

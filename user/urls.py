@@ -1,6 +1,5 @@
 from django.urls import path
 from .views import *
-
 urlpatterns = [
     path('activities/', UserActivitiesView.as_view(), name='user_activities'),
     path('dashboard/', UserDashboard.as_view(), name='user_dashboard'),
@@ -23,4 +22,10 @@ urlpatterns = [
     path('referals/', ReferalViews.as_view(), name='referals'),
     path('withdraw_referals/', WithdrawReferalBonus.as_view(),
          name='withdraw_referals'),
+    path('request_reset_pin_token/', ResetPinToken.as_view(),
+         name='request_reset_pin'),
+    path('verify_reset_pin_token/', VerifyResetPin.as_view(),
+         name='verify_reset_pin'),
+    path('change_pin/', ChangePinView.as_view(),
+         name='verify_reset_pin'),
 ]

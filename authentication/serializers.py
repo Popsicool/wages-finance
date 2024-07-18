@@ -359,3 +359,5 @@ class VerifyNINSerializer(serializers.Serializer):
     _id = serializers.CharField()
     code = serializers.CharField()
     nin = serializers.IntegerField()
+
+

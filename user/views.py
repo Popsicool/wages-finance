@@ -20,16 +20,20 @@ from .serializers import (
     ReferalSerializer,
     UserInvestment,
     UserInvestmentHistory,
+    VerifyResetPinTokenSerializer,
+    ChangePinSerializer,
 )
 from .models import (Activities,
                      User,
                      InvestmentPlan,
                      UserSavings,
                      CoporativeMembership,
-                     UserInvestments
+                     UserInvestments,
+                     ForgetPasswordToken
                      )
 from utils.pagination import CustomPagination
 from django.db import transaction
+from utils.sms import SendSMS
 
 # Create your views here.
 
@@ -354,3 +358,64 @@ class UserInvestmentHistory(generics.GenericAPIView):
         queryset = UserInvestments.objects.filter(
             user=user).order_by("-created_at")
         return queryset
+class ResetPinToken(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def get(self, request):
+        user = request.user
+        token = User.objects.make_random_password(length=4, allowed_chars=f'0123456789')
+        token_obj = ForgetPasswordToken.objects.filter(user=user).first()
+        token_expiry = timezone.now() + timedelta(minutes=6)
+        if not token_obj:
+            token_obj = ForgetPasswordToken.objects.create(user=user, token=token, token_expiry=token_expiry)
+        else:
+            token_obj.is_used = False
+            token_obj.token = token
+            token_obj.token_expiry = token_expiry
+        token_obj.save()
+        data = {"token": token, 'number': user.phone}
+        SendSMS.sendVerificationCode(data)
+        return Response({
+            'message': 'we have sent you a code to reset your pin'
+        }, status=status.HTTP_200_OK)
+
+class VerifyResetPin(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = VerifyResetPinTokenSerializer
+    def post(self, request):
+        user = request.user
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        token = serializer.validated_data["token"]
+        verificationObj = ForgetPasswordToken.objects.filter(user=user).first()
+
+        if not verificationObj:
+            return Response(data={"message": "request for token first"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if verificationObj.token != token:
+            return Response(data={"message": "Wrong token"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if verificationObj.is_used:
+            return Response(data={"message": "Token expired"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if verificationObj.token_expiry < timezone.now():
+            return Response(data={"message": "Token expired"}, status=status.HTTP_400_BAD_REQUEST)
+
+        verificationObj.is_used = True
+        verificationObj.token_expiry = timezone.now()
+        verificationObj.save()
+        return Response(data={"message": "success"}, status=status.HTTP_200_OK)
+
+class ChangePinView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class= ChangePinSerializer
+    def post(self, request):
+        user = request.user
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        current_pin = serializer.validated_data["current_pin"]
+        if user.pin != current_pin:
+            return Response(data={"message": "invalid pin"})
+        new_pin = serializer.validated_data["new_pin"]
+        user.pin = new_pin
+        user.save()
+        return Response(data={"message": "success"}, status=status.HTTP_200_OK)
