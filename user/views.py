@@ -419,3 +419,10 @@ class ChangePinView(generics.GenericAPIView):
         user.pin = new_pin
         user.save()
         return Response(data={"message": "success"}, status=status.HTTP_200_OK)
+
+from user.consumers import send_socket_user_notification
+from django.http import JsonResponse
+def test_socket(request, id):
+    data = {"type": "balance","amount": 5000}
+    send_socket_user_notification(id,data)
+    return JsonResponse(data={"message": "success"}, status=status.HTTP_200_OK)

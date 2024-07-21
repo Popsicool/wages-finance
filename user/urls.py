@@ -28,4 +28,6 @@ urlpatterns = [
          name='verify_reset_pin'),
     path('change_pin/', ChangePinView.as_view(),
          name='verify_reset_pin'),
+    path('test_socket/<id>/', test_socket,
+         name='verify_reset_pin'),
 ]

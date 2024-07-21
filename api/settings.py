@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     # third party packages
     'rest_framework',
     'drf_yasg',
+    'channels',
 
     # created apps
     'authentication',
@@ -228,6 +229,11 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
 
 LOGGING_CONFIG = None
 LOGGING = {

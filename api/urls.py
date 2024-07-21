@@ -5,6 +5,7 @@ from django.conf import settings
 from drf_yasg import openapi
 from rest_framework import permissions
 from django.conf.urls.static import static
+from user.consumers import UserConsumer
 schema_view = get_schema_view(
    openapi.Info(
       title="WAGES-FINANCE",
@@ -25,7 +26,9 @@ urlpatterns = [
     path('api/v1/user/', include('user.urls')),
     path('api/v1/notification/', include('notification.urls')),
 ]
-
+websocket_urlpatterns = [
+    path("ws/user/", UserConsumer.as_asgi())
+]
 urlpatterns += static(settings.STATIC_URL,
                       document_root=settings.STATIC_ROOT)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
