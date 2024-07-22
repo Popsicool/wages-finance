@@ -113,6 +113,17 @@ class OneTimeSubscription(generics.GenericAPIView):
                 ref_notification.save()
                 referal.save()
             user.save()
+            data = {
+                "balance": user.wallet_balance,
+                "is_subscribed":user.is_subscribed,
+                "activity":{
+                    "title":new_activity.title,
+                    "amount": new_activity.amount,
+                    "activity_type": new_activity.activity_type,
+                    "created_at": new_activity.created_at
+                }
+            }
+            send_socket_user_notification(user.id,data)
             return Response(data={"message": "success"}, status=status.HTTP_200_OK)
 
 
@@ -422,6 +433,8 @@ class ChangePinView(generics.GenericAPIView):
 
 from user.consumers import send_socket_user_notification
 from django.http import JsonResponse
+
+
 def test_socket(request, id):
     data = {"type": "balance","amount": 5000}
     send_socket_user_notification(id,data)

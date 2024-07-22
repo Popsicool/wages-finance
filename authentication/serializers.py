@@ -205,11 +205,12 @@ class LoginSerializer(serializers.ModelSerializer):
     pin = serializers.SerializerMethodField(read_only=True)
     is_subscribed = serializers.BooleanField(read_only=True)
     is_verified = serializers.BooleanField(read_only=True)
+    bvn_verified = serializers.BooleanField(read_only=True)
     phone = serializers.CharField(read_only=True)
 
     class Meta:
         model = User
-        fields = ['id','email', 'password', 'tokens', 'firstname', 'lastname', 'role', 'pin', 'is_subscribed', 'is_verified', 'phone']
+        fields = ['id','email', 'password', 'tokens', 'firstname', 'lastname', 'role', 'pin', 'is_subscribed', 'is_verified', 'phone', 'bvn_verified']
 
     def validate(self, attrs):
         email = attrs.get('email', '')
@@ -240,6 +241,7 @@ class LoginSerializer(serializers.ModelSerializer):
             'is_subscribed': user.is_subscribed,
             'is_verified': user.is_verified,
             'phone': user.phone,
+            'bvn_verified': True if user.bvn else False
         }
     def get_pin(self, obj):
         return True if obj['pin'] else False
