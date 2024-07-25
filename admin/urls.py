@@ -31,4 +31,5 @@ urlpatterns = [
     path("accept_loan/<id>/", views.AdminAcceptLoan.as_view(), name="admin_accept_loan"),
     path("reject_loan/<id>/", views.AdminRejectLoan.as_view(), name="admin_reject_overview"),
     path("transactions/", views.AdminTransactions.as_view(), name="admin_transactions"),
+    path("overview/", views.AdminOverview.as_view(), name="admin_overview"),
 ]

@@ -160,14 +160,15 @@ class AdminInviteSerializer(serializers.Serializer):
         choices=["administrator", "accountant", "customer-support", "loan-managers"], required=False)
 
 class AdminTransactionSerializer(serializers.ModelSerializer):
-    firstname = serializers.SerializerMethodField(source="user.firstname")
-    email = serializers.SerializerMethodField(source="user.email")
-    user_id = serializers.SerializerMethodField(source="user.id")
-    lastname = serializers.SerializerMethodField(source="user.lastname")
-    phone = serializers.SerializerMethodField(source="user.phone")
+    firstname = serializers.CharField(source="user.firstname")
+    email = serializers.EmailField(source="user.email")
+    user_id = serializers.IntegerField(source="user.id")
+    lastname = serializers.CharField(source="user.lastname")
+    phone = serializers.CharField(source="user.phone")
     class Meta:
         model = Transaction
         fields = ["id", "firstname", "lastname","email","phone", "amount", "status", "description", "user_id", "type"]
+
 class AdminCreateInvestmentSerializer(serializers.ModelSerializer):
     title = serializers.CharField(max_length=255)
     image = serializers.ImageField()

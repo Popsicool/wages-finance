@@ -44,6 +44,7 @@ from django.db.models import Sum
 from datetime import datetime, date
 from django.shortcuts import get_object_or_404
 import re
+from django.utils.timezone import now
 # Create your views here.
 
 
@@ -157,12 +158,72 @@ class AdminUpdateTeamView(generics.GenericAPIView):
 class AdminTransactions(generics.GenericAPIView):
     serializer_class = AdminTransactionSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    pagination_class = CustomPagination
     def get(self, request):
-        serializer = self.serializer_class(self.get_queryset(), many=True)
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.serializer_class(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     def get_queryset(self):
         return Transaction.objects.all().order_by("-created_date")
 
+class AdminOverview(views.APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('start_date', openapi.IN_QUERY, description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+        ]
+    )
+    def get(self, request):
+        start_date = self.request.query_params.get('start_date', None)
+        end_date = self.request.query_params.get('end_date', None)
+        today = now().date()
+
+        if start_date and not is_valid_date_format(start_date):
+            return Response(data={'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        if end_date and not is_valid_date_format(end_date):
+            return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        start_date = start_date or today
+        end_date = end_date or today
+
+        transactions = Transaction.objects.all()
+        
+        # Sum of all transaction amounts
+        total_sum = transactions.aggregate(Sum('revenue'))['revenue__sum'] or 0
+
+        # Filtered transactions for the given period
+        filtered_transactions = transactions.filter(created_date__range=[start_date, end_date])
+        filtered_sum = filtered_transactions.aggregate(Sum('revenue'))['revenue__sum'] or 0
+        
+        
+        # Sum of all transaction amounts
+        savings = transactions.filter(nature="SAVINGS")
+        total_savings = savings.aggregate(Sum('amount'))['amount__sum'] or 0
+
+        # Filtered transactions for the given period
+        filtered_saving = savings.filter(created_date__range=[start_date, end_date])
+        filtered_savings_sum = filtered_saving.aggregate(Sum('amount'))['amount__sum'] or 0
+        all_users = User.objects.all()
+        all_users_count = all_users.count()
+        filter_user_count = all_users.filter(created_at__range=[start_date, end_date]).count()
+        active_user = all_users.filter(is_active = True).count()
+
+        return Response({
+            'total_revenue': total_sum,
+            'filtered_revenue': filtered_sum,
+            'total_savings': total_savings,
+            'filtered_savings_sum':filtered_savings_sum,
+            'all_user_count': all_users_count,
+            'filter_user_count': filter_user_count,
+            'active_user':active_user,
+            'inactive_user': all_users_count - active_user,
+        })
 
 class AdminCreateInvestment(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
@@ -539,49 +600,50 @@ class AdminLoanDashboard(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     @swagger_auto_schema(
         manual_parameters=[
-            openapi.Parameter(
-                'filter',
-                openapi.IN_QUERY,
-                description='Filter by duration',
-                type=openapi.TYPE_STRING,
-                enum=['TODAY'],
-                required=False
-            )
+            openapi.Parameter('start_date', openapi.IN_QUERY, description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
         ]
     )
     def get(self, request, *args, **kwargs):
-        filter_date = request.GET.get('filter', datetime.today().date())
 
-        # Convert filter_date to date object if it's a string
-        if isinstance(filter_date, str):
-            filter_date = datetime.strptime(filter_date, '%Y-%m-%d').date()
+        start_date = self.request.query_params.get('start_date', None)
+        end_date = self.request.query_params.get('end_date', None)
+        today = now().date()
+
+        if start_date and not is_valid_date_format(start_date):
+            return Response(data={'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        if end_date and not is_valid_date_format(end_date):
+            return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        start_date = start_date or today
+        end_date = end_date or today
 
         # Define the statuses
-        approved_statuses = ['approved', 'repaid', 'over-due']
-        pending_status = 'pending'
-        rejected_status = 'rejected'
+        approved_statuses = ['APPROVED', 'REPAYED', 'OVER-DUE']
+        pending_status = 'PENDING'
+        rejected_status = 'REJECTED'
 
         #sum of repaid
 
         # Calculate total amounts
         total_amount = Loan.objects.filter(status__in=approved_statuses).aggregate(Sum('amount'))['amount__sum'] or 0
-        total_amount_filter = Loan.objects.filter(status__in=approved_statuses, date_approved=filter_date).aggregate(Sum('amount'))['amount__sum'] or 0
+        total_amount_filter = Loan.objects.filter(status__in=approved_statuses, date_approved__range=[start_date, end_date]).aggregate(Sum('amount'))['amount__sum'] or 0
 
         # Calculate unique loan beneficiaries
         loan_beneficiary = Loan.objects.filter(status__in=approved_statuses).values('user').distinct().count()
-        loan_beneficiary_filter = Loan.objects.filter(status__in=approved_statuses, date_approved=filter_date).values('user').distinct().count()
+        loan_beneficiary_filter = Loan.objects.filter(status__in=approved_statuses, date_approved__range=[start_date, end_date]).values('user').distinct().count()
 
         # Count approved requests
         approved_request = Loan.objects.filter(status__in=approved_statuses).count()
-        approved_filter = Loan.objects.filter(status__in=approved_statuses, date_approved=filter_date).count()
+        approved_filter = Loan.objects.filter(status__in=approved_statuses, date_approved__range=[start_date, end_date]).count()
 
         # Count pending requests
         pending_request = Loan.objects.filter(status=pending_status).count()
-        pending_request_filter = Loan.objects.filter(status=pending_status, date_requested=filter_date).count()
+        pending_request_filter = Loan.objects.filter(status=pending_status, date_requested__range=[start_date, end_date]).count()
 
         # Count rejected requests
         rejected_request = Loan.objects.filter(status=rejected_status).count()
-        rejected_request_filter = Loan.objects.filter(status=rejected_status, date_approved=filter_date).count()
+        rejected_request_filter = Loan.objects.filter(status=rejected_status, date_approved__range=[start_date, end_date]).count()
 
         # Prepare the response data
         response_data = {
