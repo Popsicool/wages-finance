@@ -4,6 +4,8 @@ from authentication.views import SetNewPasswordAPIView
 
 urlpatterns = [
     path('invite/', views.AdminInviteView.as_view(), name='admin_invite'),
+    path('team/', views.GetTeamMembers.as_view(), name='admin_team'),
+    path('update_team/<id>', views.AdminUpdateTeamView.as_view(), name='admin_update_team'),
     path('login/', views.AdminLoginView.as_view(), name='admin_login'),
     path('request-reset-password-email/', views.RequestPasswordResetEmailView.as_view(),
          name='request-reset-password-email'),
@@ -24,8 +26,9 @@ urlpatterns = [
     path('single_savings/<str:id>/', views.AdminSingleSavings.as_view(), name='admin_single_savings'),
     path('accept_withdrawal/<id>/', views.ApproveWithdrawal.as_view(), name='accept_withdrawal'),
     path('reject_withdrawal/<id>/', views.RejectWithdrawal.as_view(), name='reject_withdrawal'),
-    path("loan_dashboard", views.AdminLoanDashboard.as_view(), name="admin_loan_part"),
-    path("loan_overview", views.AdminLoanOverview.as_view(), name="admin_loan_overview"),
-    path("accept_loan/<id>", views.AdminAcceptLoan.as_view(), name="admin_accept_loan"),
-    path("reject_loan/<id>", views.AdminRejectLoan.as_view(), name="admin_reject_overview"),
+    path("loan_dashboard/", views.AdminLoanDashboard.as_view(), name="admin_loan_part"),
+    path("loan_overview/", views.AdminLoanOverview.as_view(), name="admin_loan_overview"),
+    path("accept_loan/<id>/", views.AdminAcceptLoan.as_view(), name="admin_accept_loan"),
+    path("reject_loan/<id>/", views.AdminRejectLoan.as_view(), name="admin_reject_overview"),
+    path("transactions/", views.AdminTransactions.as_view(), name="admin_transactions"),
 ]

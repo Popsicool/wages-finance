@@ -29,7 +29,11 @@ from .serializers import (
     SavingsTypeSerializer,
     SingleSavingsSerializer,
     AdminLoanList,
+    UpdateAdminSerializer,
+    GetAdminMembersSerializer,
+    AdminTransactionSerializer
 )
+from transaction.models import Transaction
 import random
 import string
 from utils.email import SendMail
@@ -99,40 +103,65 @@ class AdminInviteView(generics.GenericAPIView):
     queryset = User.objects.filter()
 
     def post(self, request):
-        serializer = AdminInviteSerializer(data=request.data, many=True)
-        if serializer.is_valid():
-            created = []
-            administrators = Group.objects.get(name="administrator")
-            accountant = Group.objects.get(name="accountant")
-            customer_support = Group.objects.get(name="customer-support")
-            loan_managers = Group.objects.get(name="loan-managers")
-            for data in serializer.validated_data:
-                email = data['email']
-                role = data['role'].strip().lower()
-                user_exists = User.objects.filter(email=email).exists()
-                if user_exists:
-                    continue
-                password = generate_random_password()
-                name = email.split('@')
-                new_admin = User.objects.create(
-                    email=email, firstname=name[0], lastname=name[0], role="ADMIN")
-                new_admin.set_password(password)
-                new_admin.is_staff = True
-                new_admin.is_verified = True
-                if role == 'administrator':
-                    new_admin.groups.add(administrators)
-                elif role == 'accountant':
-                    new_admin.groups.add(accountant)
-                elif role == 'customer-support':
-                    new_admin.groups.add(customer_support)
-                elif role == 'loan-managers':
-                    new_admin.groups.add(loan_managers)
-                new_admin.save()
-                created.append(email)
-                data = {"email": email, "password": password, "role": role}
-                SendMail.send_invite_mail(data)
-            return Response(f"The following accounts were created {created}", status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid( raise_exception=True)
+        administrators = Group.objects.get(name="administrator")
+        accountant = Group.objects.get(name="accountant")
+        customer_support = Group.objects.get(name="customer-support")
+        loan_managers = Group.objects.get(name="loan-managers")
+        email = serializer.validated_data['email']
+        first_name = serializer.validated_data['firstname']
+        last_name = serializer.validated_data['lastname']
+        role = serializer.validated_data.get('role')
+        if role:
+            role = role.strip().lower()
+        user_exists = User.objects.filter(email=email).exists()
+        if user_exists:
+            return Response(data={"message":"user already exists"}, status=status.HTTP_400_BAD_REQUEST)
+        password = generate_random_password()
+        new_admin = User.objects.create(
+            email=email, firstname=first_name, lastname=last_name, role="ADMIN")
+        new_admin.set_password(password)
+        new_admin.is_staff = True
+        new_admin.is_verified = True
+        if role == 'accountant':
+            new_admin.groups.add(accountant)
+        elif role == 'customer-support':
+            new_admin.groups.add(customer_support)
+        elif role == 'loan-managers':
+            new_admin.groups.add(loan_managers)
+        else:
+            new_admin.groups.add(administrators)
+        new_admin.save()
+        data = {"email": email, "password": password, "role": role}
+        SendMail.send_invite_mail(data)
+        return Response(data={"message":"Account created successfully"}, status=status.HTTP_201_CREATED)
+class AdminUpdateTeamView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    serializer_class = UpdateAdminSerializer
+    def post(self, request, id):
+        member = get_object_or_404(User, pk=id)
+        if member.role != 'ADMIN':
+            return Response(data={"message": "invalid admin user"}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user_status = serializer.validated_data["status"].strip().lower()
+        if user_status == 'active':
+            member.is_active = True
+        elif user_status == 'inactive':
+            member.is_active = False
+        member.save()
+        return Response(data={"message":"success"}, status=status.HTTP_200_OK)
+        
+
+class AdminTransactions(generics.GenericAPIView):
+    serializer_class = AdminTransactionSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    def get(self, request):
+        serializer = self.serializer_class(self.get_queryset(), many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        return Transaction.objects.all().order_by("-created_date")
 
 
 class AdminCreateInvestment(generics.GenericAPIView):
@@ -146,17 +175,6 @@ class AdminCreateInvestment(generics.GenericAPIView):
             serializer.save()
             return Response(data=serializer.data, status=status.HTTP_201_CREATED)
 
-# class GetInvestmentPlans(views.APIView):
-#     # permission_classes = [permissions.IsAuthenticated]
-#     serializer_class = InvestmentPlanSerializer
-#     pagination_class = CustomPagination
-
-#     def get(self, request):
-#         investments = InvestmentPlan.objects.filter(
-#             is_active=True).order_by('-end_date')
-#         serializer = self.serializer_class(investments, many=True)
-#         return Response(serializer.data, status=200)
-
 class AdminUpdateInvestment(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     serializer_class = AdminCreateInvestmentSerializer
@@ -166,7 +184,16 @@ class AdminUpdateInvestment(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(data=serializer.data, status=status.HTTP_201_CREATED)
-
+class GetTeamMembers(views.APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    serializer_class = GetAdminMembersSerializer
+    def get(self, request):
+        serializer = self.serializer_class(self.get_queryset(), many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        return User.objects.filter(
+        role="ADMIN").order_by('-created_at')
+        
 class GetSingleUserView(generics.GenericAPIView):
     serializer_class = GetSingleUserSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]

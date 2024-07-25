@@ -15,6 +15,7 @@ from django.contrib import auth
 from rest_framework.exceptions import AuthenticationFailed, ParseError
 from django.utils import timezone
 from datetime import timedelta
+from transaction.models import Transaction
 from django.utils.encoding import smart_bytes
 from django.utils.http import urlsafe_base64_encode
 # from user.models import User
@@ -136,21 +137,37 @@ class EmailCodeVerificationSerializer(serializers.ModelSerializer):
         attrs['uid64'] = urlsafe_base64_encode(smart_bytes(user.id))
         return attrs
 
+class UpdateAdminSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=["active", 'inactive'])
+class GetAdminMembersSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id","firstname", "lastname", "email", "is_active"]
 
 class AdminInviteSerializer(serializers.Serializer):
     def validate(self, attrs):
         if not 'email' in attrs.keys():
             raise serializers.ValidationError(
                 "Email must be provided")
-        if not 'role' in attrs.keys():
-            raise serializers.ValidationError(
-                "Role must be provided")
+        # if not 'role' in attrs.keys():
+        #     raise serializers.ValidationError(
+        #         "Role must be provided")
         return attrs
     email = serializers.EmailField()
+    firstname = serializers.CharField()
+    lastname = serializers.CharField()
     role = serializers.ChoiceField(
-        choices=["administrator", "accountant", "customer-support", "loan-managers"])
+        choices=["administrator", "accountant", "customer-support", "loan-managers"], required=False)
 
-
+class AdminTransactionSerializer(serializers.ModelSerializer):
+    firstname = serializers.SerializerMethodField(source="user.firstname")
+    email = serializers.SerializerMethodField(source="user.email")
+    user_id = serializers.SerializerMethodField(source="user.id")
+    lastname = serializers.SerializerMethodField(source="user.lastname")
+    phone = serializers.SerializerMethodField(source="user.phone")
+    class Meta:
+        model = Transaction
+        fields = ["id", "firstname", "lastname","email","phone", "amount", "status", "description", "user_id", "type"]
 class AdminCreateInvestmentSerializer(serializers.ModelSerializer):
     title = serializers.CharField(max_length=255)
     image = serializers.ImageField()
