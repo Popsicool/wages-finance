@@ -146,6 +146,26 @@ class AdminCreateInvestment(generics.GenericAPIView):
             serializer.save()
             return Response(data=serializer.data, status=status.HTTP_201_CREATED)
 
+# class GetInvestmentPlans(views.APIView):
+#     # permission_classes = [permissions.IsAuthenticated]
+#     serializer_class = InvestmentPlanSerializer
+#     pagination_class = CustomPagination
+
+#     def get(self, request):
+#         investments = InvestmentPlan.objects.filter(
+#             is_active=True).order_by('-end_date')
+#         serializer = self.serializer_class(investments, many=True)
+#         return Response(serializer.data, status=200)
+
+class AdminUpdateInvestment(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    serializer_class = AdminCreateInvestmentSerializer
+    def post(self, request, id):
+        plan = get_object_or_404(InvestmentPlan, pk=id)
+        serializer = self.serializer_class(instance=plan, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(data=serializer.data, status=status.HTTP_201_CREATED)
 
 class GetSingleUserView(generics.GenericAPIView):
     serializer_class = GetSingleUserSerializer
@@ -461,13 +481,20 @@ class AdminInvestmentDashboards(views.APIView):
             total_amount=Sum('amount'))['total_amount'] or 0
         count_by_filter = filter_investments.count()
 
-        investment_plans = InvestmentPlan.objects.filter(is_active=True)
+        investment_plans = InvestmentPlan.objects.all()
         plans = []
         for plan in investment_plans:
             plan_data = {
+                'id': plan.id,
                 'name': plan.title,
+                'interest_rate': plan.interest_rate,
                 'quota': plan.quota,
-                'user_investments_count': plan.investment_type.count()
+                'image': plan.image.url,
+                'start_date': plan.start_date,
+                'end_date': plan.end_date,
+                'unit_share': plan.unit_share,
+                'user_investments_count': plan.investment_type.count(),
+                'is_active': plan.is_active
             }
             plans.append(plan_data)
 

@@ -231,6 +231,9 @@ class WithdrawalView(generics.GenericAPIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         amount = serializer.validated_data["amount"]
+        pin = serializer.validated_data["pin"]
+        if user.pin != pin:
+            return Response(data={"message": "invalid pin"}, status=status.HTTP_401_UNAUTHORIZED)
         if user.wallet_balance < amount:
             return Response(data={"message": "Insufficient Fund"}, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():

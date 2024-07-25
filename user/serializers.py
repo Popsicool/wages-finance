@@ -110,10 +110,11 @@ class WithdrawalSeializer(serializers.ModelSerializer):
     amount = serializers.IntegerField()
     bank_name = serializers.CharField()
     account_number = serializers.CharField()
+    pin = serializers.IntegerField(min_value=1000, max_value=9999)
 
     class Meta:
         model = Withdrawal
-        fields = ["amount", "bank_name", "account_number"]
+        fields = ["amount", "bank_name", "account_number", "pin"]
 
     def validate(self, attrs):
         if len(attrs["account_number"]) != 10:

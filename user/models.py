@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.validators import MinLengthValidator, MinValueValidator, MaxValueValidator
+from datetime import timedelta
+from datetime import date
 # Create your models here.
 
 
@@ -331,3 +333,12 @@ class Loan(models.Model):
 
     def __str__(self):
         return f"{self.user.lastname} - {self.balance} - {self.status}"
+    def get_due_date(self):
+        if self.date_approved:
+            return self.date_approved + timedelta(days=self.duration_in_months * 30)
+        return None
+    def is_overdue(self):
+        due_date = self.get_due_date()
+        if due_date and date.today() > due_date:
+            return True
+        return False

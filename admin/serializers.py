@@ -159,11 +159,12 @@ class AdminCreateInvestmentSerializer(serializers.ModelSerializer):
     quota = serializers.IntegerField()
     interest_rate = serializers.IntegerField()
     unit_share = serializers.IntegerField()
+    is_active = serializers.BooleanField(required=False)
 
     class Meta:
         model = InvestmentPlan
         fields = ["title", "image", "start_date", "end_date",
-                  "quota", "interest_rate", "unit_share"]
+                  "quota", "interest_rate", "unit_share", "is_active"]
 
 
 class GetUsersSerializers(serializers.ModelSerializer):
