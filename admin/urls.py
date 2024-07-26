@@ -4,6 +4,7 @@ from authentication.views import SetNewPasswordAPIView
 
 urlpatterns = [
     path('invite/', views.AdminInviteView.as_view(), name='admin_invite'),
+    path('custom_referal/<id>', views.CustomeUserView.as_view(), name='admin_custom_ref'),
     path('team/', views.GetTeamMembers.as_view(), name='admin_team'),
     path('update_team/<id>', views.AdminUpdateTeamView.as_view(), name='admin_update_team'),
     path('login/', views.AdminLoginView.as_view(), name='admin_login'),

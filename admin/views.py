@@ -31,7 +31,8 @@ from .serializers import (
     AdminLoanList,
     UpdateAdminSerializer,
     GetAdminMembersSerializer,
-    AdminTransactionSerializer
+    AdminTransactionSerializer,
+    CustomReferal
 )
 from transaction.models import Transaction
 import random
@@ -68,6 +69,23 @@ class AdminLoginView(generics.GenericAPIView):
         validated_data = serializer.validated_data
         return Response(validated_data, status=status.HTTP_200_OK)
 
+
+class CustomeUserView(generics.GenericAPIView):
+    serializer_class = CustomReferal
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    def post(self, request, id):
+        user = get_object_or_404(User, pk=id)
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        ref_code = serializer.validated_data["referal_code"].upper()
+        already_exists = User.objects.filter(referal_code=ref_code).first()
+        if already_exists:
+            return Response(data={"message": "reference code already exist"}, status=status.HTTP_400_BAD_REQUEST)
+        user.referal_code = ref_code.upper()
+        user.save()
+        return Response(data={"message": "success"}, status=status.HTTP_200_OK)
+
+        
 
 class RequestPasswordResetEmailView(generics.GenericAPIView):
     serializer_class = RequestPasswordResetEmailSerializer

@@ -384,3 +384,6 @@ class AdminLoanList(serializers.ModelSerializer):
         return details
     def get_profile_picture(self, obj):
         return obj.user.profile_picture.url if obj.user.profile_picture else None
+
+class CustomReferal(serializers.Serializer):
+    referal_code = serializers.CharField(max_length=50)

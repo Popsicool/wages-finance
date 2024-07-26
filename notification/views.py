@@ -40,3 +40,18 @@ class Webhook(views.APIView):
         return Response(data={"message":"success"})
 
     # serializer_class = UserActivitiesSerializer
+
+'''
+"message": {
+        "balance": 40570.0,
+        "activity": {
+            "title": "N120 Deposit",
+            "amount": 120.0,
+            "activity_type": "CREDIT",
+            "created_at": "2024-07-26T13:27:35.412542+00:00"
+        }
+    }
+}
+
+
+'''
