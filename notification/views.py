@@ -3,6 +3,7 @@ from rest_framework import generics, status, views, permissions, parsers
 from rest_framework.response import Response
 from user.models import User, Activities
 from django.db import transaction
+from user.consumers import send_socket_user_notification
 # Create your views here.
 
 class Webhook(views.APIView):
@@ -26,6 +27,16 @@ class Webhook(views.APIView):
             new_activity = Activities.objects.create(title=f"N{amount} Deposit", amount=amount, user=user, activity_type="CREDIT")
             new_activity.save()
             user.save()
+            data = {
+                "balance": user.wallet_balance,
+                "activity":{
+                    "title":new_activity.title,
+                    "amount": new_activity.amount,
+                    "activity_type": new_activity.activity_type,
+                    "created_at": new_activity.created_at
+                }
+            }
+            send_socket_user_notification(user.id,data)
         return Response(data={"message":"success"})
 
     # serializer_class = UserActivitiesSerializer
