@@ -28,10 +28,10 @@ class Webhook(views.APIView):
             new_activity.save()
             user.save()
             data = {
-                "balance": float(user.wallet_balance),
+                "balance": str(user.wallet_balance),
                 "activity":{
                     "title":new_activity.title,
-                    "amount": float(new_activity.amount),
+                    "amount": str(new_activity.amount),
                     "activity_type": new_activity.activity_type,
                     "created_at": new_activity.created_at.isoformat()
                 }
