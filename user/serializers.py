@@ -25,13 +25,18 @@ class UserDashboardSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     wallet = serializers.SerializerMethodField()
     notifications = serializers.SerializerMethodField()
+    account_name = serializers.SerializerMethodField()
+    bank_name = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["name", "wallet", "notifications"]
-
+        fields = ["name", "wallet", "notifications", "referal_code", "account_name", "account_number", "bank_name"]
+    def get_account_name(self, obj):
+        return f'{obj.bvn_verify_details["firstName"]} {obj.bvn_verify_details["middleName"]} {obj.bvn_verify_details["lastName"]}' if obj.bvn_verify_details else None
     def get_name(self, obj):
         return obj.lastname
+    def get_bank_name(self, obj):
+        return "Safe Heaven Microfinance Bank"
 
     def get_wallet(self, obj):
         return obj.wallet_balance
