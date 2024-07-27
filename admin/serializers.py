@@ -138,7 +138,9 @@ class EmailCodeVerificationSerializer(serializers.ModelSerializer):
         return attrs
 
 class UpdateAdminSerializer(serializers.Serializer):
-    status = serializers.ChoiceField(choices=["active", 'inactive'])
+    status = serializers.ChoiceField(choices=["active", 'inactive'], required=False)
+    role = serializers.ChoiceField(
+        choices=["administrator", "accountant", "customer-support", "loan-managers"], required=False)
 class GetAdminMembersSerializer(serializers.ModelSerializer):
     class Meta:
         model = User

@@ -123,54 +123,90 @@ class AdminInviteView(generics.GenericAPIView):
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
-        serializer.is_valid( raise_exception=True)
-        administrators = Group.objects.get(name="administrator")
-        accountant = Group.objects.get(name="accountant")
-        customer_support = Group.objects.get(name="customer-support")
-        loan_managers = Group.objects.get(name="loan-managers")
+        serializer.is_valid(raise_exception=True)
+        
+        role_groups = {
+            "administrator": "Administrators",
+            "accountant": "Accountants",
+            "customer-support": "Customer Support",
+            "loan-managers": "Loan Managers"
+        }
+
         email = serializer.validated_data['email']
         first_name = serializer.validated_data['firstname']
         last_name = serializer.validated_data['lastname']
         role = serializer.validated_data.get('role')
         if role:
             role = role.strip().lower()
+        
         user_exists = User.objects.filter(email=email).exists()
         if user_exists:
-            return Response(data={"message":"user already exists"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(data={"message": "user already exists"}, status=status.HTTP_400_BAD_REQUEST)
+
         password = generate_random_password()
         new_admin = User.objects.create(
             email=email, firstname=first_name, lastname=last_name, role="ADMIN")
         new_admin.set_password(password)
         new_admin.is_staff = True
         new_admin.is_verified = True
-        if role == 'accountant':
-            new_admin.groups.add(accountant)
-        elif role == 'customer-support':
-            new_admin.groups.add(customer_support)
-        elif role == 'loan-managers':
-            new_admin.groups.add(loan_managers)
-        else:
-            new_admin.groups.add(administrators)
+
+        # Add user to the appropriate group based on role
+        group_name = role_groups.get(role, "Administrators")
+        group, created = Group.objects.get_or_create(name=group_name)
+        new_admin.groups.add(group)
+
         new_admin.save()
+        
         data = {"email": email, "password": password, "role": role}
         SendMail.send_invite_mail(data)
-        return Response(data={"message":"Account created successfully"}, status=status.HTTP_201_CREATED)
+        
+        return Response(data={"message": "Account created successfully"}, status=status.HTTP_201_CREATED)
+
 class AdminUpdateTeamView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     serializer_class = UpdateAdminSerializer
+
     def post(self, request, id):
         member = get_object_or_404(User, pk=id)
         if member.role != 'ADMIN':
             return Response(data={"message": "invalid admin user"}, status=status.HTTP_400_BAD_REQUEST)
+        
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user_status = serializer.validated_data["status"].strip().lower()
-        if user_status == 'active':
-            member.is_active = True
-        elif user_status == 'inactive':
-            member.is_active = False
+
+        validated_data = serializer.validated_data
+
+        # Update user status if provided
+        user_status = validated_data.get("status")
+        if user_status:
+            user_status = user_status.strip().lower()
+            if user_status == 'active':
+                member.is_active = True
+            elif user_status == 'inactive':
+                member.is_active = False
+            member.save()
+
+        # Update user role if provided
+        new_role = validated_data.get("role")
+        if new_role:
+            role_groups = {
+                "administrator": "Administrators",
+                "accountant": "Accountants",
+                "customer-support": "Customer Support",
+                "loan-managers": "Loan Managers"
+            }
+
+            # Remove user from all groups
+            member.groups.clear()
+
+            # Add user to the new group
+            new_group_name = role_groups.get(new_role)
+            if new_group_name:
+                new_group, created = Group.objects.get_or_create(name=new_group_name)
+                member.groups.add(new_group)
+
         member.save()
-        return Response(data={"message":"success"}, status=status.HTTP_200_OK)
+        return Response(data={"message": "success"}, status=status.HTTP_200_OK)
         
 
 class AdminTransactions(generics.GenericAPIView):
