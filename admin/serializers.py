@@ -18,6 +18,7 @@ from datetime import timedelta
 from transaction.models import Transaction
 from django.utils.encoding import smart_bytes
 from django.utils.http import urlsafe_base64_encode
+from django.contrib.auth.models import Group
 # from user.models import User
 
 
@@ -142,9 +143,15 @@ class UpdateAdminSerializer(serializers.Serializer):
     role = serializers.ChoiceField(
         choices=["administrator", "accountant", "customer-support", "loan-managers"], required=False)
 class GetAdminMembersSerializer(serializers.ModelSerializer):
+    role = serializers.SerializerMethodField()
     class Meta:
         model = User
-        fields = ["id","firstname", "lastname", "email", "is_active"]
+        fields = ["id","firstname", "lastname", "email", "is_active", "role"]
+    def get_role(self, obj):
+        groups = obj.groups.all()
+        if groups.exists():
+            return groups[0].name
+        return None
 
 class AdminInviteSerializer(serializers.Serializer):
     def validate(self, attrs):
