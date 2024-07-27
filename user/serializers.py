@@ -8,7 +8,8 @@ from .models import (
     UserSavings,
     Withdrawal,
     Loan,
-    SavingsActivities
+    SavingsActivities,
+    CoporativeActivities
 )
 import re
 from datetime import date, datetime
@@ -154,10 +155,21 @@ class WithdrawalSeializer(serializers.ModelSerializer):
 
 
 class CoporativeDashboardSerializer(serializers.ModelSerializer):
+    activities = serializers.SerializerMethodField()
     class Meta:
         model = CoporativeMembership
-        fields = ["balance", "date_joined", "membership_id"]
-
+        fields = ["balance", "date_joined", "membership_id", "activities"]
+    def get_activities(self, obj):
+        all_cooporative_activities = CoporativeActivities.objects.filter(user_coop=obj)
+        activities_list = [
+            {
+                "activity_type": activity.activity_type,
+                "amount": activity.amount,
+                "date": activity.created_at
+            }
+            for activity in all_cooporative_activities
+        ]
+        return activities_list
 
 class LoanRequestSerializer(serializers.ModelSerializer):
     guarantor1 = serializers.EmailField()

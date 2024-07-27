@@ -279,7 +279,8 @@ class UserSavings(models.Model):
 
 SAVINGS_ACTIVITIES_CHOICE = [
     ("DEPOSIT", "Deposit"),
-    ("WITHDRAWAL", "Withdrawal")
+    ("WITHDRAWAL", "Withdrawal"),
+    ("DIVIDENDS", "Dividends"),
 ]
 class SavingsActivities(models.Model):
     savings = models.ForeignKey(
@@ -299,6 +300,7 @@ class SavingsActivities(models.Model):
         return f"{self.amount} - {self.savings.type} by {self.user.firstname} on {self.created_at}"
 
 
+
 class CoporativeMembership(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     balance = models.BigIntegerField(default=0)
@@ -310,7 +312,18 @@ class CoporativeMembership(models.Model):
     def __str__(self):
         return f"{self.user.lastname} - {self.membership_id} - {self.balance} -{self.date_joined}"
 
-
+class CoporativeActivities(models.Model):
+    amount = models.IntegerField()
+    user_coop = models.ForeignKey(
+        CoporativeMembership, on_delete=models.CASCADE, related_name='user_coop_activity')
+    activity_type = models.CharField(
+        max_length=255,
+        choices=SAVINGS_ACTIVITIES_CHOICE,
+        default=SAVINGS_ACTIVITIES_CHOICE[0][0]
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        return f"{self.amount} by {self.user_coop.user.firstname} on {self.created_at}"
 class SafeHavenAPIDetails(models.Model):
     acc_token = models.TextField(max_length=255)
     client_id = models.CharField(max_length=255)

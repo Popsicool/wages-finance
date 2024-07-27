@@ -30,7 +30,8 @@ from .models import (Activities,
                      CoporativeMembership,
                      UserInvestments,
                      ForgetPasswordToken,
-                     SavingsActivities
+                     SavingsActivities,
+                     CoporativeActivities
                      )
 from utils.pagination import CustomPagination
 from django.db import transaction
@@ -213,6 +214,32 @@ class UserSavingsView(generics.ListAPIView):
         return queryset
 
 
+class FundCoporative(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = AmountPinSerializer
+    def post(self, request):
+        user = request.user
+        coop = CoporativeMembership.objects.filter(user=user).first()
+        if not coop:
+            return Response(data={"message": "Not yet a coporative member"}, status=status.HTTP_403_FORBIDDEN)
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            pin = serializer.validated_data["pin"]
+            amount = serializer.validated_data["amount"]
+            # if amount < 100:
+            #     return Response(data={"message": "Amount must be a minimum of N100"}, status=status.HTTP_403_FORBIDDEN)
+            if user.pin != pin:
+                return Response(data={"message": "invalid pin"}, status=status.HTTP_403_FORBIDDEN)
+            if user.wallet_balance < amount:
+                return Response(data={"message": "Insufficent amount in wallet"}, status=status.HTTP_403_FORBIDDEN)
+            user.wallet_balance -= amount
+            user.save()
+            coop.balance += amount
+            coop.save()
+            new_coop_activity = CoporativeActivities.objects.create(user_coop=coop, amount=amount)
+            new_coop_activity.save()
+            return Response(data={"message": "success"}, status=status.HTTP_202_ACCEPTED)
 class FundSavings(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = AmountPinSerializer
