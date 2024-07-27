@@ -111,7 +111,7 @@ class UserSavingsSerializers(serializers.ModelSerializer):
         fields = ["type", "amount", "start_date",
                   "withdrawal_date", "frequency", "saved", "goal_met", "activities"]
     def get_activities(self, obj):
-        all_savings_activities = SavingsActivities.objects.filter(savings=obj)
+        all_savings_activities = SavingsActivities.objects.filter(savings=obj).order_by("-created_at")
         activities_list = [
             {
                 "activity_type": activity.activity_type,
@@ -160,7 +160,7 @@ class CoporativeDashboardSerializer(serializers.ModelSerializer):
         model = CoporativeMembership
         fields = ["balance", "date_joined", "membership_id", "activities"]
     def get_activities(self, obj):
-        all_cooporative_activities = CoporativeActivities.objects.filter(user_coop=obj)
+        all_cooporative_activities = CoporativeActivities.objects.filter(user_coop=obj).order_by("-created_at")
         activities_list = [
             {
                 "activity_type": activity.activity_type,
