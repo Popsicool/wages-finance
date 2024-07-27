@@ -3,7 +3,7 @@ from rest_framework import generics, status, views, permissions, parsers
 from rest_framework.response import Response
 import random
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, date
 from notification.models import Notification
 from .serializers import (
     UserActivitiesSerializer,
@@ -29,7 +29,8 @@ from .models import (Activities,
                      UserSavings,
                      CoporativeMembership,
                      UserInvestments,
-                     ForgetPasswordToken
+                     ForgetPasswordToken,
+                     SavingsActivities
                      )
 from utils.pagination import CustomPagination
 from django.db import transaction
@@ -159,14 +160,34 @@ class NewSavingsView(generics.GenericAPIView):
     serializer_class = NewSavingsSerializer
     pagination_class = CustomPagination
 
-    def post(self, request):
+    def post(self, request, id):
+        if id not in [1, 2, 3, 4, 5]:
+            return Response(data={"message": "invalid option"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        option_types = {1: "BIRTHDAY", 2: "CAR-PURCHASE", 3: "VACATION", 4: "GADGET-PURCHASE", 5: "MISCELLANEOUS"}
+        user_option = option_types.get(id)
         user = request.user
-        serializer = self.serializer_class(data=request.data)
+        
+        savings_filter = UserSavings.objects.filter(user=user, type=user_option).first()
+        if not savings_filter:
+            serializer = self.serializer_class(data=request.data)
+        else:
+            serializer = self.serializer_class(instance=savings_filter, data=request.data, partial=True)
+        
         serializer.is_valid(raise_exception=True)
+        
         with transaction.atomic():
-            serializer.save(user=user)
+            if not savings_filter:
+                if not serializer.validated_data.get("frequency"):
+                    return Response(data={"message":"frequency is compulsory"},  status=status.HTTP_400_BAD_REQUEST)
+                serializer.save(user=user, type=user_option, start_date=date.today())
+            else:
+                if not savings_filter.start_date:
+                    serializer.save(start_date=date.today())
+                else:
+                    serializer.save()
+                    
             return Response(data=serializer.data, status=status.HTTP_201_CREATED)
-
 
 class UserSavingsView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -200,16 +221,23 @@ class FundSavings(generics.GenericAPIView):
         user = request.user
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        savings = get_object_or_404(UserSavings, pk=id)
-        if savings.user != user:
-            return Response(status=status.HTTP_403_FORBIDDEN)
+        if id not in [1, 2, 3, 4, 5]:
+            return Response(data={"message": "invalid option"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        option_types = {1: "BIRTHDAY", 2: "CAR-PURCHASE", 3: "VACATION", 4: "GADGET-PURCHASE", 5: "MISCELLANEOUS"}
+        user_option = option_types.get(id)
+        savings = UserSavings.objects.filter(user=user, type=user_option).first()
+        serializer = self.serializer_class(data=request.data)
+        if not savings:
+            return Response(data={"message": "Set savings option first"}, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)            
         with transaction.atomic():
             pin = serializer.validated_data["pin"]
             amount = serializer.validated_data["amount"]
+            if amount < 100:
+                return Response(data={"message": "Amount must be a minimum of N100"}, status=status.HTTP_403_FORBIDDEN)
             if user.pin != pin:
                 return Response(data={"message": "invalid pin"}, status=status.HTTP_403_FORBIDDEN)
-            if not savings.is_active:
-                return Response(data={"message": "savings plan is no more active"}, status=status.HTTP_403_FORBIDDEN)
             if user.wallet_balance < amount:
                 return Response(data={"message": "Insufficent amount in wallet"}, status=status.HTTP_403_FORBIDDEN)
             user.wallet_balance -= amount
@@ -217,8 +245,10 @@ class FundSavings(generics.GenericAPIView):
             savings.saved += amount
             if savings.saved >= savings.amount:
                 savings.goal_met = True
-                savings.is_active = False
             savings.save()
+            new_savings_activity = SavingsActivities.objects.create(savings=savings, amount=amount,
+                                                                    user=user)
+            new_savings_activity.save()
             return Response(data={"message": "success"}, status=status.HTTP_202_ACCEPTED)
 
 

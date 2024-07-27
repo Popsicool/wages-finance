@@ -256,24 +256,47 @@ SAVINGS_TYPES = [
 class UserSavings(models.Model):
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='user_savings')
-    title = models.CharField(
+    type = models.CharField(
         max_length=35, choices=SAVINGS_TYPES, default=SAVINGS_TYPES[0][0])
     amount = models.BigIntegerField()
     saved = models.BigIntegerField(default=0)
-    start_date = models.DateField()
-    end_date = models.DateField()
+    start_date = models.DateField(blank=True, null=True)
+    withdrawal_date = models.DateField(blank=True, null=True)
     cancel_date = models.DateField(blank=True, null=True)
     goal_met = models.BooleanField(default=False)
     frequency = models.CharField(
         choices=SAVINGS_FREQUENCY_CHOICE,
         default=SAVINGS_FREQUENCY_CHOICE[0][0]
     )
-    is_active = models.BooleanField(default=True)
+    time = models.TimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.user.lastname} - {self.title} - {self.amount} - {self.start_date} - {self.end_date}"
+        return f"{self.user.lastname} - {self.type} - {self.amount} - {self.start_date} - {self.withdrawal_date}"
+
+
+
+SAVINGS_ACTIVITIES_CHOICE = [
+    ("DEPOSIT", "Deposit"),
+    ("WITHDRAWAL", "Withdrawal")
+]
+class SavingsActivities(models.Model):
+    savings = models.ForeignKey(
+        UserSavings, on_delete=models.CASCADE, related_name="savings_activities"
+    )
+    amount = models.IntegerField()
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='user_saving_activity')
+    activity_type = models.CharField(
+        max_length=255,
+        choices=SAVINGS_ACTIVITIES_CHOICE,
+        default=SAVINGS_ACTIVITIES_CHOICE[0][0]
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.amount} - {self.savings.type} by {self.user.firstname} on {self.created_at}"
 
 
 class CoporativeMembership(models.Model):

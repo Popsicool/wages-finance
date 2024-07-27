@@ -8,8 +8,10 @@ from .models import (
     UserSavings,
     Withdrawal,
     Loan,
+    SavingsActivities
 )
 import re
+from datetime import date, datetime
 
 
 # def is_valid_date_format(date_string):
@@ -67,39 +69,57 @@ class SetPinSerializer(serializers.Serializer):
 
 
 class NewSavingsSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(read_only=True)
-    title = serializers.CharField()
     amount = serializers.IntegerField()
-    start_date = serializers.DateField()
-    end_date = serializers.DateField()
-    frequency = serializers.CharField()
+    withdrawal_date = serializers.DateField()
+    frequency = serializers.ChoiceField(choices=[("daily", "DAILY"), ("weekly", "WEEKLY"), ("monthly", "MONTHLY")], required=False)
+    time = serializers.TimeField(required=False)
 
     class Meta:
         model = UserSavings
-        fields = ["id", "title", "amount",
-                  "start_date", "end_date", "frequency"]
+        fields = ["type", "amount", "start_date", "withdrawal_date", "frequency", "time"]
 
     def validate(self, attrs):
-        start_date = attrs.get("start_date")
-        end_date = attrs.get("end_date")
-        title = attrs.get("title")
-        frequency = attrs.get("frequency").strip().upper()
-        if frequency not in ["DAILY", "WEEKLY", "MONTHLY"]:
-            raise serializers.ValidationError(
-                'Frequency must be one of "DAILY", "WEEKLY" or "MONTHLY"')
-        if title not in ["BIRTHDAY", "CAR-PURCHASE", "VACATION", "GARGET-PURCHASE", "MISCELLANEOUS"]:
-            raise serializers.ValidationError(
-                'Title must be one of "BIRTHDAY", "CAR-PURCHASE", "VACATION", "GARGET-PURCHASE" or "MISCELLANEOUS"')
-        #! check past date
-        attrs["frequency"] = frequency
+        time = attrs.get("time")
+        withdrawal_date = attrs.get("withdrawal_date")
+        frequency = attrs.get("frequency")
+
+        if frequency:
+            frequency = frequency.upper()
+            if frequency not in ["DAILY", "WEEKLY", "MONTHLY"]:
+                raise serializers.ValidationError('Frequency must be one of "DAILY", "WEEKLY", or "MONTHLY".')
+
+            if frequency == "DAILY" and not time:
+                raise serializers.ValidationError('Time must be provided for daily savings')
+
+        # Check if the withdrawal_date is in the future
+        if withdrawal_date and withdrawal_date <= date.today():
+            raise serializers.ValidationError('Withdrawal date must be a future date.')
+
+        if frequency:
+            attrs["frequency"] = frequency
         return attrs
 
-
+# class UserActivitiesSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Activities
+#         fields = ["title", "amount", "activity_type", "created_at"]
 class UserSavingsSerializers(serializers.ModelSerializer):
+    activities = serializers.SerializerMethodField()
     class Meta:
         model = UserSavings
-        fields = ["id", "title", "amount", "start_date",
-                  "end_date", "frequency", "saved", "goal_met"]
+        fields = ["type", "amount", "start_date",
+                  "withdrawal_date", "frequency", "saved", "goal_met", "activities"]
+    def get_activities(self, obj):
+        all_savings_activities = SavingsActivities.objects.filter(savings=obj)
+        activities_list = [
+            {
+                "activity_type": activity.activity_type,
+                "amount": activity.amount,
+                "date": activity.created_at
+            }
+            for activity in all_savings_activities
+        ]
+        return activities_list
 
 
 class UpdateDP(serializers.Serializer):
