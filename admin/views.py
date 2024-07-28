@@ -126,10 +126,10 @@ class AdminInviteView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         
         role_groups = {
-            "administrator": "Administrators",
-            "accountant": "Accountants",
-            "customer-support": "Customer Support",
-            "loan-managers": "Loan Managers"
+            "administrator": "Administrator",
+            "accountant": "Accountant",
+            "customer-support": "Customer-support",
+            "loan-manager": "Loan-manager"
         }
 
         email = serializer.validated_data['email']
@@ -151,7 +151,7 @@ class AdminInviteView(generics.GenericAPIView):
         new_admin.is_verified = True
 
         # Add user to the appropriate group based on role
-        group_name = role_groups.get(role, "Administrators")
+        group_name = role_groups.get(role, "Customer-support")
         group, created = Group.objects.get_or_create(name=group_name)
         new_admin.groups.add(group)
 

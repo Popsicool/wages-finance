@@ -166,7 +166,7 @@ class AdminInviteSerializer(serializers.Serializer):
     firstname = serializers.CharField()
     lastname = serializers.CharField()
     role = serializers.ChoiceField(
-        choices=["administrator", "accountant", "customer-support", "loan-managers"], required=False)
+        choices=["Administrator", "Accountant", "Customer-support", "Loan-manager"], required=False)
 
 class AdminTransactionSerializer(serializers.ModelSerializer):
     firstname = serializers.CharField(source="user.firstname")
