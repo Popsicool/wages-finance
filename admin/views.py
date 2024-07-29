@@ -189,12 +189,13 @@ class AdminUpdateTeamView(generics.GenericAPIView):
         # Update user role if provided
         new_role = validated_data.get("role")
         if new_role:
+            new_role = new_role.strip().lower()
             role_groups = {
-                "administrator": "Administrators",
-                "accountant": "Accountants",
-                "customer-support": "Customer Support",
-                "loan-managers": "Loan Managers"
-            }
+            "administrator": "Administrator",
+            "accountant": "Accountant",
+            "customer-support": "Customer-support",
+            "loan-manager": "Loan-manager"
+        }
 
             # Remove user from all groups
             member.groups.clear()

@@ -3,7 +3,7 @@ from datetime import timedelta
 from rest_framework import serializers
 from django.contrib import auth
 from rest_framework.exceptions import AuthenticationFailed, ParseError
-from django.utils.encoding import force_str, smart_bytes
+from django.utils.encoding import force_str, smart_bytes, DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from user.models import User, EmailVerification, ForgetPasswordToken
 import random
@@ -260,10 +260,13 @@ class SetNewPasswordSerializer(serializers.Serializer):
     def validate(self, attrs):
 
         password = attrs.get('password')
-        uid64 = attrs.get('uid64').upper()
+        uid64 = attrs.get('uid64')
 
         # Decode base64 string
-        id = force_str(urlsafe_base64_decode(uid64))
+        try:
+            id = force_str(urlsafe_base64_decode(uid64))
+        except DjangoUnicodeDecodeError as e:
+            raise AuthenticationFailed('Invalid user', 401)
         if not id.isdigit():
             raise AuthenticationFailed('Invalid user', 401)
         user = User.objects.filter(id=id).first()
