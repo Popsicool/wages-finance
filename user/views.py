@@ -4,6 +4,8 @@ from rest_framework.response import Response
 import random
 from django.utils import timezone
 from datetime import timedelta, date
+from itertools import chain
+from operator import attrgetter
 from notification.models import Notification
 from .serializers import (
     UserActivitiesSerializer,
@@ -43,13 +45,26 @@ from utils.sms import SendSMS
 class UserActivitiesView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = UserActivitiesSerializer
-    queryset = Activities.objects.all()
     pagination_class = CustomPagination
 
     def get(self, request):
         user = request.user
-        queryset = self.queryset.filter(user=user).order_by("-created_at")
-        serializer = self.serializer_class(queryset, many=True)
+        activities_qs = Activities.objects.filter(user=user).order_by("-created_at")
+        savings_activities_qs = SavingsActivities.objects.filter(user=user).order_by("-created_at")
+        coporative_activities_qs = CoporativeActivities.objects.filter(user_coop__user=user).order_by("-created_at")
+
+        combined_qs = sorted(
+            chain(activities_qs, savings_activities_qs, coporative_activities_qs),
+            key=attrgetter('created_at'),
+            reverse=True
+        )
+
+        page = self.paginate_queryset(combined_qs)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.serializer_class(combined_qs, many=True)
         return Response(serializer.data, status=200)
 
 
@@ -293,6 +308,7 @@ class WithdrawalView(generics.GenericAPIView):
             return Response(data={"message": "invalid pin"}, status=status.HTTP_401_UNAUTHORIZED)
         if user.wallet_balance < amount:
             return Response(data={"message": "Insufficient Fund"}, status=status.HTTP_400_BAD_REQUEST)
+        serializer.validated_data.pop("pin", None)
         with transaction.atomic():
             serializer.save(user=request.user)
             user.wallet_balance -= amount

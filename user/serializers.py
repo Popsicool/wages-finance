@@ -18,11 +18,40 @@ from datetime import date, datetime
 # def is_valid_date_format(date_string):
 #     pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 #     return bool(pattern.match(date_string))
-class UserActivitiesSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Activities
-        fields = ["title", "amount", "activity_type", "created_at"]
+class UserActivitiesSerializer(serializers.Serializer):
+    title = serializers.CharField(required=False)
+    amount = serializers.IntegerField()
+    activity_type = serializers.CharField()
+    created_at = serializers.DateTimeField()
+    source = serializers.CharField()
 
+    def to_representation(self, instance):
+        # Customize the representation of each activity depending on the source model
+        if isinstance(instance, Activities):
+            return {
+                "title": instance.title,
+                "amount": instance.amount,
+                "activity_type": instance.get_activity_type_display(),
+                "created_at": instance.created_at,
+                "source": "activities"
+            }
+        elif isinstance(instance, SavingsActivities):
+            return {
+                "title": instance.savings.type,
+                "amount": instance.amount,
+                "activity_type": instance.get_activity_type_display(),
+                "created_at": instance.created_at,
+                "source": "savings_activities"
+            }
+        elif isinstance(instance, CoporativeActivities):
+            return {
+                "title": f"N{instance.amount} Cooporative {instance.activity_type.lower()}",
+                "amount": instance.amount,
+                "activity_type": instance.get_activity_type_display(),
+                "created_at": instance.created_at,
+                "source": "coporative_activities"
+            }
+        return super().to_representation(instance)
 
 class UserDashboardSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
@@ -136,7 +165,7 @@ class WithdrawalSeializer(serializers.ModelSerializer):
     amount = serializers.IntegerField()
     bank_name = serializers.CharField()
     account_number = serializers.CharField()
-    pin = serializers.IntegerField(min_value=1000, max_value=9999)
+    pin = serializers.IntegerField(min_value=1000, max_value=9999, write_only=True)
 
     class Meta:
         model = Withdrawal
