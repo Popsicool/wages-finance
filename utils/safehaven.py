@@ -142,7 +142,7 @@ def create_safehaven_account(data):
         response = requests.post(url, json=payload, headers=headers)
         resp = response.json()
         if response.status_code == 201:
-            return resp["data"]["accountNumber"]
+            return (resp["data"]["accountNumber"], resp["data"]["accountName"])
         if response.status_code == 403:
-            return "Expired token - Access Restricted!"
-    return resp["data"]["accountNumber"]
+            return ("Expired token - Access Restricted!", None)
+    return (resp["data"]["accountNumber"], resp["data"]["accountName"])

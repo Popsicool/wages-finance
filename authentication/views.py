@@ -30,6 +30,7 @@ from utils.email import SendMail
 from utils.sms import SendSMS
 from utils.safehaven import safe_validate, safe_initiate, create_safehaven_account
 from .permissions import IsUser
+from user.consumers import send_socket_user_notification
 
 
 class SignupView(generics.GenericAPIView):
@@ -59,11 +60,12 @@ class SignupView(generics.GenericAPIView):
             # persist user in db
             user = serializer.save()
             # generate email verification token
-            token = User.objects.make_random_password(length=4, allowed_chars=f'0123456789')
+            # token = User.objects.make_random_password(length=4, allowed_chars=f'0123456789')
+            token = "1234"
             token_expiry = timezone.now() + timedelta(minutes=6)
             EmailVerification.objects.create(user=user, token=token, token_expiry=token_expiry)
-            data = {"token": token, 'number': user.phone}
-            SendSMS.sendVerificationCode(data)
+            # data = {"token": token, 'number': user.phone}
+            # SendSMS.sendVerificationCode(data)
         return Response({
             "message": "Registration successful"
         }, status=status.HTTP_201_CREATED)
@@ -235,8 +237,15 @@ class VerifyBVNView(generics.GenericAPIView):
                 "_id": user_det["_id"],
                 "otp": user_det["otpId"]
                 }
-            account_number = create_safehaven_account(acc_data)
+            account_number, account_name = create_safehaven_account(acc_data)
             user.account_number = account_number
+            user.account_name = account_name
+            data = {
+                "account_number": user.account_number,
+                "account_name":user.account_name,
+                'bvn_verified': True
+            }
+            send_socket_user_notification(user.id,data)
             user.save()
         return Response(data={"message": "success"}, status=status.HTTP_200_OK)
 

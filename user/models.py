@@ -61,6 +61,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     firstname = models.CharField(max_length=255)
     lastname = models.CharField(max_length=255)
     account_number = models.CharField(max_length=12, blank=True, null=True)
+    account_name = models.CharField(max_length=250, blank=True, null=True)
     referal = models.ForeignKey(
         'self', on_delete=models.SET_NULL, null=True, blank=True)
     email = models.EmailField(max_length=255, unique=True, db_index=True)
