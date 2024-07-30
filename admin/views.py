@@ -41,7 +41,7 @@ from utils.email import SendMail
 from rest_framework import status
 from django.db import transaction
 from django.utils import timezone
-from django.db.models import Sum
+from django.db.models import Sum, F, ExpressionWrapper, DecimalField
 from datetime import datetime, date
 from django.shortcuts import get_object_or_404
 import re
@@ -653,6 +653,7 @@ class AdminInvestmentDashboards(views.APIView):
 
 class AdminLoanDashboard(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    
     @swagger_auto_schema(
         manual_parameters=[
             openapi.Parameter('start_date', openapi.IN_QUERY, description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
@@ -674,36 +675,56 @@ class AdminLoanDashboard(views.APIView):
         end_date = end_date or today
 
         # Define the statuses
-        approved_statuses = ['APPROVED', 'REPAYED', 'OVER-DUE']
+        approved_statuses = ['APPROVED', 'REPAYED', 'OVER-DUE', 'REPAYED']
         pending_status = 'PENDING'
         rejected_status = 'REJECTED'
+        overdued_status = 'OVER-DUE'
 
-        #sum of repaid
+        # Annotate loans with interest
+        loans_with_interest = Loan.objects.annotate(
+            loan_interest=ExpressionWrapper(F('amount_repayed') * F('interest_rate') / 100, output_field=DecimalField())
+        )
 
         # Calculate total amounts
-        total_amount = Loan.objects.filter(status__in=approved_statuses).aggregate(Sum('amount'))['amount__sum'] or 0
-        total_amount_filter = Loan.objects.filter(status__in=approved_statuses, date_approved__range=[start_date, end_date]).aggregate(Sum('amount'))['amount__sum'] or 0
+        total_amount = loans_with_interest.filter(status__in=approved_statuses).aggregate(Sum('amount'))['amount__sum'] or 0
+        total_amount_filter = loans_with_interest.filter(status__in=approved_statuses, date_approved__range=[start_date, end_date]).aggregate(Sum('amount'))['amount__sum'] or 0
+        
+        # Calculate total repayment
+        total_repayment = loans_with_interest.aggregate(Sum('amount_repayed'))['amount_repayed__sum'] or 0
+        total_repayment_filter = loans_with_interest.filter(date_approved__range=[start_date, end_date]).aggregate(Sum('amount_repayed'))['amount_repayed__sum'] or 0
+        
+        # Calculate loan interest
+        loan_interest = loans_with_interest.filter(status__in=approved_statuses).aggregate(Sum('loan_interest'))['loan_interest__sum'] or 0
+        loan_interest_filter = loans_with_interest.filter(status__in=approved_statuses, date_approved__range=[start_date, end_date]).aggregate(Sum('loan_interest'))['loan_interest__sum'] or 0
 
         # Calculate unique loan beneficiaries
-        loan_beneficiary = Loan.objects.filter(status__in=approved_statuses).values('user').distinct().count()
-        loan_beneficiary_filter = Loan.objects.filter(status__in=approved_statuses, date_approved__range=[start_date, end_date]).values('user').distinct().count()
+        loan_beneficiary = loans_with_interest.filter(status__in=approved_statuses).values('user').distinct().count()
+        loan_beneficiary_filter = loans_with_interest.filter(status__in=approved_statuses, date_approved__range=[start_date, end_date]).values('user').distinct().count()
 
         # Count approved requests
-        approved_request = Loan.objects.filter(status__in=approved_statuses).count()
-        approved_filter = Loan.objects.filter(status__in=approved_statuses, date_approved__range=[start_date, end_date]).count()
+        approved_request = loans_with_interest.filter(status__in=approved_statuses).count()
+        approved_filter = loans_with_interest.filter(status__in=approved_statuses, date_approved__range=[start_date, end_date]).count()
 
         # Count pending requests
-        pending_request = Loan.objects.filter(status=pending_status).count()
-        pending_request_filter = Loan.objects.filter(status=pending_status, date_requested__range=[start_date, end_date]).count()
+        pending_request = loans_with_interest.filter(status=pending_status).count()
+        pending_request_filter = loans_with_interest.filter(status=pending_status, date_requested__range=[start_date, end_date]).count()
 
         # Count rejected requests
-        rejected_request = Loan.objects.filter(status=rejected_status).count()
-        rejected_request_filter = Loan.objects.filter(status=rejected_status, date_approved__range=[start_date, end_date]).count()
+        rejected_request = loans_with_interest.filter(status=rejected_status).count()
+        rejected_request_filter = loans_with_interest.filter(status=rejected_status, date_approved__range=[start_date, end_date]).count()
+        
+        # Count overdue requests
+        overdued_request = loans_with_interest.filter(status=overdued_status).count()
+        overdued_request_filter = loans_with_interest.filter(status=overdued_status, date_approved__range=[start_date, end_date]).count()
 
         # Prepare the response data
         response_data = {
             'total_amount': total_amount,
             'total_amount_filter': total_amount_filter,
+            'total_repayment': total_repayment,
+            'total_repayment_filter': total_repayment_filter,
+            'loan_interest': loan_interest,
+            'loan_interest_filter': loan_interest_filter,
             'loan_beneficiary': loan_beneficiary,
             'loan_beneficiary_filter': loan_beneficiary_filter,
             'approved_request': approved_request,
@@ -712,6 +733,8 @@ class AdminLoanDashboard(views.APIView):
             'pending_request_filter': pending_request_filter,
             'rejected_request': rejected_request,
             'rejected_request_filter': rejected_request_filter,
+            'overdued_request': overdued_request,
+            'overdued_request_filter': overdued_request_filter,
         }
 
         return Response(response_data)
@@ -720,8 +743,17 @@ class AdminLoanOverview(generics.GenericAPIView):
     serializer_class = AdminLoanList
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     pagination_class = CustomPagination
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('status', openapi.IN_QUERY, description='Filter by approved, pending, rejected, overdue, repayed', type=openapi.TYPE_STRING, enum=['approved', 'pending', 'rejected', 'overdue', 'repayed'], required=False),
+        ]
+    )
     def get(self, request):
         queryset = Loan.objects.all().order_by("-date_requested")
+        filter_param = request.query_params.get('status', None)
+        if filter_param:
+            filter_param  = filter_param.strip().upper()
+            queryset = queryset.filter(status=filter_param)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.serializer_class(page, many=True)
@@ -767,3 +799,9 @@ class AdminRejectLoan(views.APIView):
             )
             new_notification.save()
         return Response({"message": "success"}, status=status.HTTP_200_OK)
+    
+
+
+'''
+Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzIyNDE1MDc3LCJpYXQiOjE3MjIzMjg2NzcsImp0aSI6ImE3NzY1NzIzNWFlYzQxNGM4MTZiMWNmZjhhZjVlMzVlIiwidXNlcl9pZCI6MX0.YmqpT5eYJCjvrElyDeU2bg9L5-FQGmvL6NVkkUIyPts
+'''

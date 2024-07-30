@@ -359,8 +359,8 @@ class AdminLoanList(serializers.ModelSerializer):
     lastname = serializers.CharField(source="user.lastname")
     phone = serializers.CharField(source="user.phone")
     email = serializers.CharField(source="user.email")
-    guarantor_1 = serializers.SerializerMethodField()
-    guarantor_2 = serializers.SerializerMethodField()
+    guarantors = serializers.SerializerMethodField()
+    # guarantor_2 = serializers.SerializerMethodField()
     profile_picture = serializers.SerializerMethodField()
 
     class Meta:
@@ -368,29 +368,29 @@ class AdminLoanList(serializers.ModelSerializer):
         fields = ["id","user_id", "firstname", "lastname", "amount",
                   "date_requested", "phone", "email","profile_picture",
                   "duration_in_months", "interest_rate",
-                  "date_approved", "status", "guarantor_1", "guarantor_2"]
-    def get_guarantor_1(self, obj):
-        if not obj.guarantor1:
-            return None
-        details = {
-            "id": obj.guarantor1.id,
-            "name": f"{obj.guarantor1.firstname} {obj.guarantor1.lastname}",
-            "email": obj.guarantor1.email,
-            "phone": obj.guarantor1.phone,
-            "status": obj.guarantor1_agreed
-        }
-        return details
-    def get_guarantor_2(self, obj):
-        if not obj.guarantor2:
-            return None
-        details = {
-            "id": obj.guarantor2.id,
-            "name": f"{obj.guarantor2.firstname} {obj.guarantor2.lastname}",
-            "email": obj.guarantor2.email,
-            "phone": obj.guarantor2.phone,
-            "status": obj.guarantor2_agreed
-        }
-        return details
+                  "date_approved", "status", "guarantors"]
+    def get_guarantors(self, obj):
+        guarantors = []
+        if obj.guarantor1:
+            details1 = {
+                "id": obj.guarantor1.id,
+                "name": f"{obj.guarantor1.firstname} {obj.guarantor1.lastname}",
+                "email": obj.guarantor1.email,
+                "phone": obj.guarantor1.phone,
+                "status": obj.guarantor1_agreed
+            }
+            guarantors.append(details1)
+        if obj.guarantor2:
+            details2 = {
+                "id": obj.guarantor2.id,
+                "name": f"{obj.guarantor2.firstname} {obj.guarantor2.lastname}",
+                "email": obj.guarantor2.email,
+                "phone": obj.guarantor2.phone,
+                "status": obj.guarantor2_agreed
+            }
+            guarantors.append(details2)
+        return guarantors
+    
     def get_profile_picture(self, obj):
         return obj.user.profile_picture.url if obj.user.profile_picture else None
 
