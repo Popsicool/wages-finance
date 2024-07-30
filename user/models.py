@@ -248,7 +248,7 @@ SAVINGS_TYPES = [
     ("BIRTHDAY", "Birthday"),
     ("CAR-PURCHASE", "Car purchase"),
     ("VACATION", "Vacations"),
-    ("GARGET-PURCHASE", "Garget purchase"),
+    ("GADGET-PURCHASE", "Gadget purchase"),
     ("MISCELLANEOUS", "Miscellaneous")
 ]
 

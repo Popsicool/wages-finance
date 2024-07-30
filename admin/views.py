@@ -524,14 +524,14 @@ class AdminCoporateSavingsDashboard(views.APIView):
 
 
 class AdminSavingsStatsView(views.APIView):
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
 
     def get(self, request):
         # Aggregating data
         savings_data = UserSavings.objects.aggregate(
             unique_users_active_savings=Count(
-                'user', distinct=True, filter=Q(is_active=True)),
-            total_saved_active=Sum('saved', filter=Q(is_active=True)),
+                'user', distinct=True),
+            total_saved_active=Sum('saved'),
             total_saved_all=Sum('saved'),
             savings_count_per_title=Count('id', distinct=True),
             unique_users_per_title=Count('user', distinct=True),
@@ -539,7 +539,7 @@ class AdminSavingsStatsView(views.APIView):
         )
 
         # Separate query to get counts and sums grouped by title
-        title_aggregates = UserSavings.objects.values('title').annotate(
+        title_aggregates = UserSavings.objects.values('type').annotate(
             savings_count_per_title=Count('id'),
             unique_users_per_title=Count('user', distinct=True),
             total_saved_per_title=Sum('saved')
@@ -548,7 +548,7 @@ class AdminSavingsStatsView(views.APIView):
         # Formatting the title aggregates into a dictionary
         title_data = {}
         for item in title_aggregates:
-            title_data[item['title']] = {
+            title_data[item['type']] = {
                 'savings_count': item['savings_count_per_title'],
                 'unique_users': item['unique_users_per_title'],
                 'total_saved': item['total_saved_per_title']
