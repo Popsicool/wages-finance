@@ -1,3 +1,5 @@
+from user.consumers import send_socket_user_notification
+from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
 from rest_framework import generics, status, views, permissions, parsers
 from rest_framework.response import Response
@@ -23,7 +25,7 @@ from .serializers import (
     UserInvestment,
     UserInvestmentHistory,
     VerifyResetPinTokenSerializer,
-    ChangePinSerializer,
+    ChangePinSerializer
 )
 from .models import (Activities,
                      User,
@@ -33,7 +35,8 @@ from .models import (Activities,
                      UserInvestments,
                      ForgetPasswordToken,
                      SavingsActivities,
-                     CoporativeActivities
+                     CoporativeActivities,
+                     BANK_LISTS
                      )
 from utils.pagination import CustomPagination
 from django.db import transaction
@@ -49,12 +52,16 @@ class UserActivitiesView(generics.GenericAPIView):
 
     def get(self, request):
         user = request.user
-        activities_qs = Activities.objects.filter(user=user).order_by("-created_at")
-        savings_activities_qs = SavingsActivities.objects.filter(user=user).order_by("-created_at")
-        coporative_activities_qs = CoporativeActivities.objects.filter(user_coop__user=user).order_by("-created_at")
+        activities_qs = Activities.objects.filter(
+            user=user).order_by("-created_at")
+        savings_activities_qs = SavingsActivities.objects.filter(
+            user=user).order_by("-created_at")
+        coporative_activities_qs = CoporativeActivities.objects.filter(
+            user_coop__user=user).order_by("-created_at")
 
         combined_qs = sorted(
-            chain(activities_qs, savings_activities_qs, coporative_activities_qs),
+            chain(activities_qs, savings_activities_qs,
+                  coporative_activities_qs),
             key=attrgetter('created_at'),
             reverse=True
         )
@@ -132,15 +139,15 @@ class OneTimeSubscription(generics.GenericAPIView):
             user.save()
             data = {
                 "balance": user.wallet_balance,
-                "is_subscribed":user.is_subscribed,
-                "activity":{
-                    "title":new_activity.title,
+                "is_subscribed": user.is_subscribed,
+                "activity": {
+                    "title": new_activity.title,
                     "amount": new_activity.amount,
                     "activity_type": new_activity.activity_type,
                     "created_at": new_activity.created_at
                 }
             }
-            send_socket_user_notification(user.id,data)
+            send_socket_user_notification(user.id, data)
             return Response(data={"message": "success"}, status=status.HTTP_200_OK)
 
 
@@ -179,31 +186,36 @@ class NewSavingsView(generics.GenericAPIView):
     def post(self, request, id):
         if id not in [1, 2, 3, 4, 5]:
             return Response(data={"message": "invalid option"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        option_types = {1: "BIRTHDAY", 2: "CAR-PURCHASE", 3: "VACATION", 4: "GADGET-PURCHASE", 5: "MISCELLANEOUS"}
+
+        option_types = {1: "BIRTHDAY", 2: "CAR-PURCHASE",
+                        3: "VACATION", 4: "GADGET-PURCHASE", 5: "MISCELLANEOUS"}
         user_option = option_types.get(id)
         user = request.user
-        
-        savings_filter = UserSavings.objects.filter(user=user, type=user_option).first()
+
+        savings_filter = UserSavings.objects.filter(
+            user=user, type=user_option).first()
         if not savings_filter:
             serializer = self.serializer_class(data=request.data)
         else:
-            serializer = self.serializer_class(instance=savings_filter, data=request.data, partial=True)
-        
+            serializer = self.serializer_class(
+                instance=savings_filter, data=request.data, partial=True)
+
         serializer.is_valid(raise_exception=True)
-        
+
         with transaction.atomic():
             if not savings_filter:
                 if not serializer.validated_data.get("frequency"):
-                    return Response(data={"message":"frequency is compulsory"},  status=status.HTTP_400_BAD_REQUEST)
-                serializer.save(user=user, type=user_option, start_date=date.today())
+                    return Response(data={"message": "frequency is compulsory"},  status=status.HTTP_400_BAD_REQUEST)
+                serializer.save(user=user, type=user_option,
+                                start_date=date.today())
             else:
                 if not savings_filter.start_date:
                     serializer.save(start_date=date.today())
                 else:
                     serializer.save()
-                    
+
             return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+
 
 class UserSavingsView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -232,6 +244,7 @@ class UserSavingsView(generics.ListAPIView):
 class FundCoporative(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = AmountPinSerializer
+
     def post(self, request):
         user = request.user
         coop = CoporativeMembership.objects.filter(user=user).first()
@@ -252,9 +265,12 @@ class FundCoporative(generics.GenericAPIView):
             user.save()
             coop.balance += amount
             coop.save()
-            new_coop_activity = CoporativeActivities.objects.create(user_coop=coop, amount=amount)
+            new_coop_activity = CoporativeActivities.objects.create(
+                user_coop=coop, amount=amount)
             new_coop_activity.save()
             return Response(data={"message": "success"}, status=status.HTTP_202_ACCEPTED)
+
+
 class FundSavings(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = AmountPinSerializer
@@ -265,14 +281,16 @@ class FundSavings(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         if id not in [1, 2, 3, 4, 5]:
             return Response(data={"message": "invalid option"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        option_types = {1: "BIRTHDAY", 2: "CAR-PURCHASE", 3: "VACATION", 4: "GADGET-PURCHASE", 5: "MISCELLANEOUS"}
+
+        option_types = {1: "BIRTHDAY", 2: "CAR-PURCHASE",
+                        3: "VACATION", 4: "GADGET-PURCHASE", 5: "MISCELLANEOUS"}
         user_option = option_types.get(id)
-        savings = UserSavings.objects.filter(user=user, type=user_option).first()
+        savings = UserSavings.objects.filter(
+            user=user, type=user_option).first()
         serializer = self.serializer_class(data=request.data)
         if not savings:
             return Response(data={"message": "Set savings option first"}, status=status.HTTP_400_BAD_REQUEST)
-        serializer.is_valid(raise_exception=True)            
+        serializer.is_valid(raise_exception=True)
         with transaction.atomic():
             pin = serializer.validated_data["pin"]
             amount = serializer.validated_data["amount"]
@@ -304,13 +322,18 @@ class WithdrawalView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         amount = serializer.validated_data["amount"]
         pin = serializer.validated_data["pin"]
+        bank_code = serializer.validated_data["bank_code"]
         if user.pin != pin:
             return Response(data={"message": "invalid pin"}, status=status.HTTP_401_UNAUTHORIZED)
         if user.wallet_balance < amount:
             return Response(data={"message": "Insufficient Fund"}, status=status.HTTP_400_BAD_REQUEST)
         serializer.validated_data.pop("pin", None)
+        matching_bank = list(filter(lambda bank: bank["bankCode"] == bank_code, BANK_LISTS))
+        if not matching_bank:
+            return Response(data={"message": "invalid bank code"}, status=status.HTTP_400_BAD_REQUEST)
+        matching_bank = matching_bank[0]
         with transaction.atomic():
-            serializer.save(user=request.user)
+            serializer.save(user=request.user, bank_name=matching_bank["name"])
             user.wallet_balance -= amount
             user.save()
             new_activity = Activities.objects.create(
@@ -425,7 +448,7 @@ class UserInvest(generics.GenericAPIView):
             )
             new_user_investment.save()
             if investment.quota == investment.investors:
-                #TODO
+                # TODO
                 pass
             investment.save()
         return Response(data=serializer.data, status=status.HTTP_201_CREATED)
@@ -445,15 +468,20 @@ class UserInvestmentHistory(generics.GenericAPIView):
         queryset = UserInvestments.objects.filter(
             user=user).order_by("-created_at")
         return queryset
+
+
 class ResetPinToken(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
+
     def get(self, request):
         user = request.user
-        token = User.objects.make_random_password(length=4, allowed_chars=f'0123456789')
+        token = User.objects.make_random_password(
+            length=4, allowed_chars=f'0123456789')
         token_obj = ForgetPasswordToken.objects.filter(user=user).first()
         token_expiry = timezone.now() + timedelta(minutes=6)
         if not token_obj:
-            token_obj = ForgetPasswordToken.objects.create(user=user, token=token, token_expiry=token_expiry)
+            token_obj = ForgetPasswordToken.objects.create(
+                user=user, token=token, token_expiry=token_expiry)
         else:
             token_obj.is_used = False
             token_obj.token = token
@@ -465,9 +493,11 @@ class ResetPinToken(views.APIView):
             'message': 'we have sent you a code to reset your pin'
         }, status=status.HTTP_200_OK)
 
+
 class VerifyResetPin(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = VerifyResetPinTokenSerializer
+
     def post(self, request):
         user = request.user
         serializer = self.serializer_class(data=request.data)
@@ -492,9 +522,11 @@ class VerifyResetPin(generics.GenericAPIView):
         verificationObj.save()
         return Response(data={"message": "success"}, status=status.HTTP_200_OK)
 
+
 class ChangePinView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
-    serializer_class= ChangePinSerializer
+    serializer_class = ChangePinSerializer
+
     def post(self, request):
         user = request.user
         serializer = self.serializer_class(data=request.data)
@@ -507,11 +539,15 @@ class ChangePinView(generics.GenericAPIView):
         user.save()
         return Response(data={"message": "success"}, status=status.HTTP_200_OK)
 
-from user.consumers import send_socket_user_notification
-from django.http import JsonResponse
-
 
 def test_socket(request, id):
-    data = {"type": "balance","amount": 5000}
-    send_socket_user_notification(id,data)
+    data = {"type": "balance", "amount": 5000}
+    send_socket_user_notification(id, data)
     return JsonResponse(data={"message": "success"}, status=status.HTTP_200_OK)
+
+
+
+
+class Get_Banks(views.APIView):
+    def get(self, request):
+        return Response(data=BANK_LISTS, status=status.HTTP_200_OK)

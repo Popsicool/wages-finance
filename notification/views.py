@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from user.models import User, Activities
 from django.db import transaction
 from user.consumers import send_socket_user_notification
+from transaction.models import Transaction
 # Create your views here.
 
 class Webhook(views.APIView):
@@ -25,6 +26,12 @@ class Webhook(views.APIView):
         with transaction.atomic():
             user.wallet_balance += amount
             new_activity = Activities.objects.create(title=f"N{amount} Deposit", amount=amount, user=user, activity_type="CREDIT")
+            new_transaction = Transaction.objects.create(
+                user=user,
+                amount = amount,
+                description = f"N{amount} deposited by {user.firstname}"
+            )
+            new_transaction.save()
             new_activity.save()
             user.save()
             data = {
