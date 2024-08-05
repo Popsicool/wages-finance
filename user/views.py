@@ -399,7 +399,7 @@ class WithdrawReferalBonus(views.APIView):
         with transaction.atomic():
             new_activity = Activities.objects.create(
                 user=user,
-                title=f"N {user.referal_balance} referal bonus withdrawal",
+                title="Referal bonus withdrawal",
                 activity_type="CREDIT",
                 amount=user.referal_balance)
             new_activity.save()
@@ -541,7 +541,16 @@ class ChangePinView(generics.GenericAPIView):
 
 
 def test_socket(request, id):
-    data = {"type": "balance", "amount": 5000}
+    data = {
+        "balance": 38900.0,
+        "activity": 
+            {
+                "title": "N300 Deposit",
+                "amount": 300.0,
+                "activity_type": "CREDIT",
+                "created_at": "2024-08-02T14:11:16.112158+00:00"
+            }
+        }
     send_socket_user_notification(id, data)
     return JsonResponse(data={"message": "success"}, status=status.HTTP_200_OK)
 
@@ -551,3 +560,22 @@ def test_socket(request, id):
 class Get_Banks(views.APIView):
     def get(self, request):
         return Response(data=BANK_LISTS, status=status.HTTP_200_OK)
+
+
+
+'''
+{"message": 
+    {
+        "balance": 37300.0,
+        "activity": 
+            {
+                "title": "N300 Deposit",
+                "amount": 300.0,
+                "activity_type": "CREDIT",
+                "created_at": "2024-08-02T14:11:16.112158+00:00"
+            }
+        }
+}
+
+
+'''

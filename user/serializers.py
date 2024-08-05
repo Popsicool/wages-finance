@@ -45,7 +45,7 @@ class UserActivitiesSerializer(serializers.Serializer):
             }
         elif isinstance(instance, CoporativeActivities):
             return {
-                "title": f"N{instance.amount} Cooporative {instance.activity_type.lower()}",
+                "title": f"Cooporative {instance.activity_type.lower()}",
                 "amount": instance.amount,
                 "activity_type": instance.get_activity_type_display(),
                 "created_at": instance.created_at,
