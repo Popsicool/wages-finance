@@ -1,5 +1,5 @@
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
 from rest_framework import serializers
 from django.contrib import auth
 from rest_framework.exceptions import AuthenticationFailed, ParseError
@@ -207,29 +207,34 @@ class LoginSerializer(serializers.ModelSerializer):
     is_verified = serializers.BooleanField(read_only=True)
     bvn_verified = serializers.BooleanField(read_only=True)
     phone = serializers.CharField(read_only=True)
+    loan_eligibility = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = User
-        fields = ['id','email', 'password', 'tokens', 'firstname', 'lastname', 'role', 'pin', 'is_subscribed', 'is_verified', 'phone', 'bvn_verified']
+        fields = ['id', 'email', 'password', 'tokens', 'firstname', 'lastname', 'role', 'pin', 'is_subscribed', 'is_verified', 'phone', 'bvn_verified', 'loan_eligibility']
 
     def validate(self, attrs):
         email = attrs.get('email', '')
         password = attrs.get('password', '')
-        valid_user = User.objects.filter(email = email).first()
+        valid_user = User.objects.filter(email=email).first()
         if not valid_user:
-            valid_user = User.objects.filter(phone = email).first()
+            valid_user = User.objects.filter(phone=email).first()
             if valid_user:
                 email = valid_user.email
         if not valid_user:
-            raise AuthenticationFailed('invalid credentials, try again')
+            raise AuthenticationFailed('Invalid credentials, try again')
         if not valid_user.is_active:
-            raise AuthenticationFailed('account disabled, contact admin')
+            raise AuthenticationFailed('Account disabled, contact admin')
         user = auth.authenticate(email=email, password=password)
         if not user:
-            raise AuthenticationFailed('invalid credentials, try again')
+            raise AuthenticationFailed('Invalid credentials, try again')
         if not user.is_verified:
-            raise AuthenticationFailed('please verify your account')
+            raise AuthenticationFailed('Please verify your account')
         role = user.role
+
+        # Check loan eligibility
+        loan_eligibility = (timezone.now() - user.created_at) >= timedelta(days=2)
+
         return {
             'id': user.id,
             'email': user.email,
@@ -241,10 +246,15 @@ class LoginSerializer(serializers.ModelSerializer):
             'is_subscribed': user.is_subscribed,
             'is_verified': user.is_verified,
             'phone': user.phone,
-            'bvn_verified': True if user.bvn else False
+            'bvn_verified': True if user.bvn else False,
+            'loan_eligibility': loan_eligibility
         }
+
     def get_pin(self, obj):
         return True if obj['pin'] else False
+
+    def get_loan_eligibility(self, obj):
+        return obj['loan_eligibility']
 
 
 
