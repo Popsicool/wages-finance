@@ -571,7 +571,7 @@ class SavingsType(generics.GenericAPIView):
 
     def get(self, request, name):
         queryset = UserSavings.objects.filter(
-            title=name.strip().upper()).order_by("-created_at")
+            type=name.strip().upper()).order_by("-created_at")
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.serializer_class(page, many=True)
