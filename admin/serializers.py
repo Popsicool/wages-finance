@@ -323,15 +323,20 @@ class SavingsTypeSerializer(serializers.ModelSerializer):
 
 class SingleSavingsSerializer(serializers.ModelSerializer):
     amount_per_savings = serializers.SerializerMethodField()
+    end_date = serializers.SerializerMethodField()
+    title = serializers.SerializerMethodField()
 
     class Meta:
         model = UserSavings
         fields = ["title", "user", "amount", "saved", "frequency",
                   "start_date", "end_date", "amount_per_savings"]
-
+    def get_title(self, obj):
+        return obj.type
+    def get_end_date(self, obj):
+        return obj.withdrawal_date
     def get_amount_per_savings(self, obj):
         start_date = obj.start_date
-        end_date = obj.end_date
+        end_date = obj.withdrawal_date
         amount = obj.amount
         frequency = obj.frequency
 
