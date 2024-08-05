@@ -369,10 +369,13 @@ class LoanRequestView(generics.GenericAPIView):
             return Response(data={"message": "Not a member of coporative"}, status=status.HTTP_403_FORBIDDEN)
         now = timezone.now()
         memberships_joined = now - timedelta(days=5)
-        if membership.date_joined < memberships_joined:
+        if membership.date_joined >= memberships_joined:
             return Response(data={"message": "Not up to 6 months as a coporative member"}, status=status.HTTP_403_FORBIDDEN)
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
+        amount = serializer.validated_data["amount"]
+        if amount > (membership.balance * 2):
+            return Response(data={"message": "You are not eligible for this amount"}, status=status.HTTP_403_FORBIDDEN)
         with transaction.atomic():
             serializer.save(user=user)
             return Response(data=serializer.data, status=status.HTTP_201_CREATED)

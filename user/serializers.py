@@ -211,7 +211,7 @@ class LoanRequestSerializer(serializers.ModelSerializer):
         guarantor1 = attrs.get("guarantor1")
         guarantor2 = attrs.get("guarantor2")
         amount = attrs.get("amount")
-        if amount < 0:
+        if amount <= 0:
             raise serializers.ValidationError(
                 "Amount must be a positive number")
         g1 = User.objects.filter(email=guarantor1).first()
@@ -224,10 +224,12 @@ class LoanRequestSerializer(serializers.ModelSerializer):
         g2_member = CoporativeMembership.objects.filter(user=g2).first()
         if not g1_member:
             raise serializers.ValidationError(
-                "Guarantor1 not a valid cooporative member")
+                "Guarantor1 not an active cooporative member")
         if not g2_member:
             raise serializers.ValidationError(
-                "Guarantor2 not a valid cooporative member")
+                "Guarantor2 not an active cooporative member")
+        attrs['guarantor1'] = g1
+        attrs['guarantor2'] = g2
         return attrs
 
 # class ReferalInnerSerializer(serializers.ModelSerializer):
