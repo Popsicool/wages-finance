@@ -857,6 +857,7 @@ class AdminRejectLoan(views.APIView):
 class AdminUserCoporativeBreakdown(generics.GenericAPIView):
     serializer_class = AdminSingleUserCoporativeDetails
     pagination_class = CustomPagination
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
 
     @swagger_auto_schema(
         manual_parameters=[
@@ -894,6 +895,7 @@ class AdminUserCoporativeBreakdown(generics.GenericAPIView):
 class AdminUserInvestmentBreakdown(generics.GenericAPIView):
     serializer_class = AdminUserInvestmentSerializer
     pagination_class = CustomPagination
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     def get(self, request, id):
         queryset = self.get_queryset()
         page = self.paginate_queryset(queryset)
@@ -928,6 +930,7 @@ class AdminUserInvestmentBreakdown(generics.GenericAPIView):
 
 class AdminUserInvestmentHistory(generics.GenericAPIView):
     serializer_class = AdminUserInvestmentSerializerHistory
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     @swagger_auto_schema(
         manual_parameters=[
             openapi.Parameter('start_date', openapi.IN_QUERY,
@@ -989,6 +992,7 @@ class AdminUserInvestmentHistory(generics.GenericAPIView):
 
 class AdminUserSavingsData(generics.GenericAPIView):
     serializer_class = AdminUserSavingsDataSerializers
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     def get(self, request, id):
         queryset = self.get_queryset()
         print(queryset)
