@@ -266,7 +266,7 @@ class FundCoporative(generics.GenericAPIView):
             coop.balance += amount
             coop.save()
             new_coop_activity = CoporativeActivities.objects.create(
-                user_coop=coop, amount=amount)
+                user_coop=coop, amount=amount, balance=coop.balance)
             new_coop_activity.save()
             return Response(data={"message": "success"}, status=status.HTTP_202_ACCEPTED)
 

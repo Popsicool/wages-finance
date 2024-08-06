@@ -223,7 +223,7 @@ class InvestmentPlan(models.Model):
 USER_INVESTMENT_STATUS = [
     ("ACTIVE", "Active Investment"),
     ("MATURED", "Investment Matured, waiting for payout"),
-    ("PAID-OUT", "INvestment has been paid out")
+    ("WITHDRAWN", "Investment has been withdrawn")
 ]
 
 
@@ -265,6 +265,7 @@ class UserSavings(models.Model):
     start_date = models.DateField(blank=True, null=True)
     withdrawal_date = models.DateField(blank=True, null=True)
     cancel_date = models.DateField(blank=True, null=True)
+    cycle = models.PositiveIntegerField(default=1)
     goal_met = models.BooleanField(default=False)
     frequency = models.CharField(
         choices=SAVINGS_FREQUENCY_CHOICE,
@@ -317,6 +318,7 @@ class CoporativeMembership(models.Model):
 
 class CoporativeActivities(models.Model):
     amount = models.IntegerField()
+    balance = models.IntegerField()
     user_coop = models.ForeignKey(
         CoporativeMembership, on_delete=models.CASCADE, related_name='user_coop_activity')
     activity_type = models.CharField(

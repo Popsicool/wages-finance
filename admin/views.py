@@ -7,7 +7,8 @@ from user.models import (User,
                          UserSavings,
                          InvestmentPlan,
                          UserInvestments,
-                         Loan
+                         Loan,
+                         CoporativeActivities
                          )
 from django.contrib.auth.models import Group
 from drf_yasg.utils import swagger_auto_schema
@@ -32,7 +33,11 @@ from .serializers import (
     UpdateAdminSerializer,
     GetAdminMembersSerializer,
     AdminTransactionSerializer,
-    CustomReferal
+    CustomReferal,
+    AdminSingleUserCoporativeDetails,
+    AdminUserInvestmentSerializer,
+    AdminUserInvestmentSerializerHistory,
+    AdminUserSavingsDataSerializers,
 )
 from transaction.models import Transaction
 import random
@@ -73,6 +78,7 @@ class AdminLoginView(generics.GenericAPIView):
 class CustomeUserView(generics.GenericAPIView):
     serializer_class = CustomReferal
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+
     def post(self, request, id):
         user = get_object_or_404(User, pk=id)
         serializer = self.serializer_class(data=request.data)
@@ -85,7 +91,6 @@ class CustomeUserView(generics.GenericAPIView):
         user.save()
         return Response(data={"message": "success"}, status=status.HTTP_200_OK)
 
-        
 
 class RequestPasswordResetEmailView(generics.GenericAPIView):
     serializer_class = RequestPasswordResetEmailSerializer
@@ -124,7 +129,7 @@ class AdminInviteView(generics.GenericAPIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         role_groups = {
             "administrator": "Administrator",
             "accountant": "Accountant",
@@ -138,7 +143,7 @@ class AdminInviteView(generics.GenericAPIView):
         role = serializer.validated_data.get('role')
         if role:
             role = role.strip().lower()
-        
+
         user_exists = User.objects.filter(email=email).exists()
         if user_exists:
             return Response(data={"message": "user already exists"}, status=status.HTTP_400_BAD_REQUEST)
@@ -156,11 +161,12 @@ class AdminInviteView(generics.GenericAPIView):
         new_admin.groups.add(group)
 
         new_admin.save()
-        
+
         data = {"email": email, "password": password, "role": role}
         SendMail.send_invite_mail(data)
-        
+
         return Response(data={"message": "Account created successfully"}, status=status.HTTP_201_CREATED)
+
 
 class AdminUpdateTeamView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
@@ -170,7 +176,7 @@ class AdminUpdateTeamView(generics.GenericAPIView):
         member = get_object_or_404(User, pk=id)
         if member.role != 'ADMIN':
             return Response(data={"message": "invalid admin user"}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -191,11 +197,11 @@ class AdminUpdateTeamView(generics.GenericAPIView):
         if new_role:
             new_role = new_role.strip().lower()
             role_groups = {
-            "administrator": "Administrator",
-            "accountant": "Accountant",
-            "customer-support": "Customer-support",
-            "loan-manager": "Loan-manager"
-        }
+                "administrator": "Administrator",
+                "accountant": "Accountant",
+                "customer-support": "Customer-support",
+                "loan-manager": "Loan-manager"
+            }
 
             # Remove user from all groups
             member.groups.clear()
@@ -203,17 +209,19 @@ class AdminUpdateTeamView(generics.GenericAPIView):
             # Add user to the new group
             new_group_name = role_groups.get(new_role)
             if new_group_name:
-                new_group, created = Group.objects.get_or_create(name=new_group_name)
+                new_group, created = Group.objects.get_or_create(
+                    name=new_group_name)
                 member.groups.add(new_group)
 
         member.save()
         return Response(data={"message": "success"}, status=status.HTTP_200_OK)
-        
+
 
 class AdminTransactions(generics.GenericAPIView):
     serializer_class = AdminTransactionSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     pagination_class = CustomPagination
+
     def get(self, request):
         queryset = self.get_queryset()
         page = self.paginate_queryset(queryset)
@@ -222,16 +230,20 @@ class AdminTransactions(generics.GenericAPIView):
             return self.get_paginated_response(serializer.data)
         serializer = self.serializer_class(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
     def get_queryset(self):
         return Transaction.objects.all().order_by("-created_date")
 
+
 class AdminOverview(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
-    
+
     @swagger_auto_schema(
         manual_parameters=[
-            openapi.Parameter('start_date', openapi.IN_QUERY, description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('start_date', openapi.IN_QUERY,
+                              description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)',
+                              type=openapi.TYPE_STRING, required=False),
         ]
     )
     def get(self, request):
@@ -248,37 +260,42 @@ class AdminOverview(views.APIView):
         end_date = end_date or today
 
         transactions = Transaction.objects.all()
-        
+
         # Sum of all transaction amounts
         total_sum = transactions.aggregate(Sum('revenue'))['revenue__sum'] or 0
 
         # Filtered transactions for the given period
-        filtered_transactions = transactions.filter(created_date__range=[start_date, end_date])
-        filtered_sum = filtered_transactions.aggregate(Sum('revenue'))['revenue__sum'] or 0
-        
-        
+        filtered_transactions = transactions.filter(
+            created_date__range=[start_date, end_date])
+        filtered_sum = filtered_transactions.aggregate(Sum('revenue'))[
+            'revenue__sum'] or 0
+
         # Sum of all transaction amounts
         savings = transactions.filter(nature="SAVINGS")
         total_savings = savings.aggregate(Sum('amount'))['amount__sum'] or 0
 
         # Filtered transactions for the given period
-        filtered_saving = savings.filter(created_date__range=[start_date, end_date])
-        filtered_savings_sum = filtered_saving.aggregate(Sum('amount'))['amount__sum'] or 0
+        filtered_saving = savings.filter(
+            created_date__range=[start_date, end_date])
+        filtered_savings_sum = filtered_saving.aggregate(Sum('amount'))[
+            'amount__sum'] or 0
         all_users = User.objects.all()
         all_users_count = all_users.count()
-        filter_user_count = all_users.filter(created_at__range=[start_date, end_date]).count()
-        active_user = all_users.filter(is_active = True).count()
+        filter_user_count = all_users.filter(
+            created_at__range=[start_date, end_date]).count()
+        active_user = all_users.filter(is_active=True).count()
 
         return Response({
             'total_revenue': total_sum,
             'filtered_revenue': filtered_sum,
             'total_savings': total_savings,
-            'filtered_savings_sum':filtered_savings_sum,
+            'filtered_savings_sum': filtered_savings_sum,
             'all_user_count': all_users_count,
             'filter_user_count': filter_user_count,
-            'active_user':active_user,
+            'active_user': active_user,
             'inactive_user': all_users_count - active_user,
         })
+
 
 class AdminCreateInvestment(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
@@ -291,25 +308,33 @@ class AdminCreateInvestment(generics.GenericAPIView):
             serializer.save()
             return Response(data=serializer.data, status=status.HTTP_201_CREATED)
 
+
 class AdminUpdateInvestment(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     serializer_class = AdminCreateInvestmentSerializer
+
     def post(self, request, id):
         plan = get_object_or_404(InvestmentPlan, pk=id)
-        serializer = self.serializer_class(instance=plan, data=request.data, partial=True)
+        serializer = self.serializer_class(
+            instance=plan, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+
+
 class GetTeamMembers(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     serializer_class = GetAdminMembersSerializer
+
     def get(self, request):
         serializer = self.serializer_class(self.get_queryset(), many=True)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
+
     def get_queryset(self):
         return User.objects.filter(
-        role="ADMIN").order_by('-created_at')
-        
+            role="ADMIN").order_by('-created_at')
+
+
 class GetSingleUserView(generics.GenericAPIView):
     serializer_class = GetSingleUserSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
@@ -651,13 +676,16 @@ class AdminInvestmentDashboards(views.APIView):
 
         return Response(data)
 
+
 class AdminLoanDashboard(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
-    
+
     @swagger_auto_schema(
         manual_parameters=[
-            openapi.Parameter('start_date', openapi.IN_QUERY, description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('start_date', openapi.IN_QUERY,
+                              description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)',
+                              type=openapi.TYPE_STRING, required=False),
         ]
     )
     def get(self, request, *args, **kwargs):
@@ -682,40 +710,57 @@ class AdminLoanDashboard(views.APIView):
 
         # Annotate loans with interest
         loans_with_interest = Loan.objects.annotate(
-            loan_interest=ExpressionWrapper(F('amount_repayed') * F('interest_rate') / 100, output_field=DecimalField())
+            loan_interest=ExpressionWrapper(
+                F('amount_repayed') * F('interest_rate') / 100, output_field=DecimalField())
         )
 
         # Calculate total amounts
-        total_amount = loans_with_interest.filter(status__in=approved_statuses).aggregate(Sum('amount'))['amount__sum'] or 0
-        total_amount_filter = loans_with_interest.filter(status__in=approved_statuses, date_approved__range=[start_date, end_date]).aggregate(Sum('amount'))['amount__sum'] or 0
-        
+        total_amount = loans_with_interest.filter(
+            status__in=approved_statuses).aggregate(Sum('amount'))['amount__sum'] or 0
+        total_amount_filter = loans_with_interest.filter(status__in=approved_statuses, date_approved__range=[
+                                                         start_date, end_date]).aggregate(Sum('amount'))['amount__sum'] or 0
+
         # Calculate total repayment
-        total_repayment = loans_with_interest.aggregate(Sum('amount_repayed'))['amount_repayed__sum'] or 0
-        total_repayment_filter = loans_with_interest.filter(date_approved__range=[start_date, end_date]).aggregate(Sum('amount_repayed'))['amount_repayed__sum'] or 0
-        
+        total_repayment = loans_with_interest.aggregate(Sum('amount_repayed'))[
+            'amount_repayed__sum'] or 0
+        total_repayment_filter = loans_with_interest.filter(date_approved__range=[
+                                                            start_date, end_date]).aggregate(Sum('amount_repayed'))['amount_repayed__sum'] or 0
+
         # Calculate loan interest
-        loan_interest = loans_with_interest.filter(status__in=approved_statuses).aggregate(Sum('loan_interest'))['loan_interest__sum'] or 0
-        loan_interest_filter = loans_with_interest.filter(status__in=approved_statuses, date_approved__range=[start_date, end_date]).aggregate(Sum('loan_interest'))['loan_interest__sum'] or 0
+        loan_interest = loans_with_interest.filter(status__in=approved_statuses).aggregate(
+            Sum('loan_interest'))['loan_interest__sum'] or 0
+        loan_interest_filter = loans_with_interest.filter(status__in=approved_statuses, date_approved__range=[
+                                                          start_date, end_date]).aggregate(Sum('loan_interest'))['loan_interest__sum'] or 0
 
         # Calculate unique loan beneficiaries
-        loan_beneficiary = loans_with_interest.filter(status__in=approved_statuses).values('user').distinct().count()
-        loan_beneficiary_filter = loans_with_interest.filter(status__in=approved_statuses, date_approved__range=[start_date, end_date]).values('user').distinct().count()
+        loan_beneficiary = loans_with_interest.filter(
+            status__in=approved_statuses).values('user').distinct().count()
+        loan_beneficiary_filter = loans_with_interest.filter(status__in=approved_statuses, date_approved__range=[
+                                                             start_date, end_date]).values('user').distinct().count()
 
         # Count approved requests
-        approved_request = loans_with_interest.filter(status__in=approved_statuses).count()
-        approved_filter = loans_with_interest.filter(status__in=approved_statuses, date_approved__range=[start_date, end_date]).count()
+        approved_request = loans_with_interest.filter(
+            status__in=approved_statuses).count()
+        approved_filter = loans_with_interest.filter(
+            status__in=approved_statuses, date_approved__range=[start_date, end_date]).count()
 
         # Count pending requests
-        pending_request = loans_with_interest.filter(status=pending_status).count()
-        pending_request_filter = loans_with_interest.filter(status=pending_status, date_requested__range=[start_date, end_date]).count()
+        pending_request = loans_with_interest.filter(
+            status=pending_status).count()
+        pending_request_filter = loans_with_interest.filter(
+            status=pending_status, date_requested__range=[start_date, end_date]).count()
 
         # Count rejected requests
-        rejected_request = loans_with_interest.filter(status=rejected_status).count()
-        rejected_request_filter = loans_with_interest.filter(status=rejected_status, date_approved__range=[start_date, end_date]).count()
-        
+        rejected_request = loans_with_interest.filter(
+            status=rejected_status).count()
+        rejected_request_filter = loans_with_interest.filter(
+            status=rejected_status, date_approved__range=[start_date, end_date]).count()
+
         # Count overdue requests
-        overdued_request = loans_with_interest.filter(status=overdued_status).count()
-        overdued_request_filter = loans_with_interest.filter(status=overdued_status, date_approved__range=[start_date, end_date]).count()
+        overdued_request = loans_with_interest.filter(
+            status=overdued_status).count()
+        overdued_request_filter = loans_with_interest.filter(
+            status=overdued_status, date_approved__range=[start_date, end_date]).count()
 
         # Prepare the response data
         response_data = {
@@ -739,20 +784,23 @@ class AdminLoanDashboard(views.APIView):
 
         return Response(response_data)
 
+
 class AdminLoanOverview(generics.GenericAPIView):
     serializer_class = AdminLoanList
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     pagination_class = CustomPagination
+
     @swagger_auto_schema(
         manual_parameters=[
-            openapi.Parameter('status', openapi.IN_QUERY, description='Filter by approved, pending, rejected, overdue, repayed', type=openapi.TYPE_STRING, enum=['approved', 'pending', 'rejected', 'overdue', 'repayed'], required=False),
+            openapi.Parameter('status', openapi.IN_QUERY, description='Filter by approved, pending, rejected, overdue, repayed',
+                              type=openapi.TYPE_STRING, enum=['approved', 'pending', 'rejected', 'overdue', 'repayed'], required=False),
         ]
     )
     def get(self, request):
         queryset = Loan.objects.all().order_by("-date_requested")
         filter_param = request.query_params.get('status', None)
         if filter_param:
-            filter_param  = filter_param.strip().upper()
+            filter_param = filter_param.strip().upper()
             queryset = queryset.filter(status=filter_param)
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -761,12 +809,14 @@ class AdminLoanOverview(generics.GenericAPIView):
         serializer = self.serializer_class(queryset, many=True)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
+
 class AdminAcceptLoan(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+
     def get(self, request, id):
         loan = get_object_or_404(Loan, pk=id)
         if loan.status != "PENDING":
-            return Response({"message":"loan not in pending state"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "loan not in pending state"}, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():
             loan.status = "APPROVED"
             user = loan.user
@@ -781,12 +831,15 @@ class AdminAcceptLoan(views.APIView):
             user.save()
             loan.save()
         return Response({"message": "success"}, status=status.HTTP_200_OK)
+
+
 class AdminRejectLoan(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+
     def get(self, request, id):
         loan = get_object_or_404(Loan, pk=id)
         if loan.status != "PENDING":
-            return Response({"message":"loan not in pending state"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "loan not in pending state"}, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():
             loan.status = "REJECTED"
             loan.is_active = False
@@ -799,9 +852,150 @@ class AdminRejectLoan(views.APIView):
             )
             new_notification.save()
         return Response({"message": "success"}, status=status.HTTP_200_OK)
-    
 
 
-'''
-Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzIyNDE1MDc3LCJpYXQiOjE3MjIzMjg2NzcsImp0aSI6ImE3NzY1NzIzNWFlYzQxNGM4MTZiMWNmZjhhZjVlMzVlIiwidXNlcl9pZCI6MX0.YmqpT5eYJCjvrElyDeU2bg9L5-FQGmvL6NVkkUIyPts
-'''
+class AdminUserCoporativeBreakdown(generics.GenericAPIView):
+    serializer_class = AdminSingleUserCoporativeDetails
+    pagination_class = CustomPagination
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('start_date', openapi.IN_QUERY,
+                              description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)',
+                              type=openapi.TYPE_STRING, required=False),
+        ]
+    )
+    def get(self, request, id):
+        start_date = self.request.query_params.get('start_date', None)
+        end_date = self.request.query_params.get('end_date', None)
+        if start_date and not is_valid_date_format(start_date):
+            return Response(data={'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        if end_date and not is_valid_date_format(end_date):
+            return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+    def get_queryset(self):
+        id = self.kwargs['id']
+        user = get_object_or_404(User, pk=id)
+        start_date = self.request.query_params.get('start_date', None)
+        end_date = self.request.query_params.get('end_date', None)
+        today = now().date()
+        start_date = start_date or today
+        end_date = end_date or today
+        return CoporativeActivities.objects.filter(user_coop__user=user, created_at__range=[start_date, end_date]).select_related('user_coop').order_by('-created_at')
+
+class AdminUserInvestmentBreakdown(generics.GenericAPIView):
+    serializer_class = AdminUserInvestmentSerializer
+    pagination_class = CustomPagination
+    def get(self, request, id):
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+
+        active_investment = queryset.aggregate(Sum('amount'))['amount__sum'] or 0
+        total_roi = 0
+        for itm in queryset:
+            total_roi += (itm.investment.interest_rate / 100) * itm.amount
+        active_investment_count = queryset.count()
+
+        # Custom response data
+        additional_data = {
+            'active_investment_amount': active_investment,
+            'acive_investment_roi': total_roi,
+            'active_investment_count': active_investment_count,
+        }
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            response_data = {
+                'overview': additional_data,
+                'investments': serializer.data
+            }
+            return self.get_paginated_response(response_data)
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+    def get_queryset(self):
+        id = self.kwargs['id']
+        user = get_object_or_404(User, pk=id)
+        queryset = UserInvestments.objects.filter(user = user, status="ACTIVE").order_by('-due_date')
+        return queryset
+
+class AdminUserInvestmentHistory(generics.GenericAPIView):
+    serializer_class = AdminUserInvestmentSerializerHistory
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('start_date', openapi.IN_QUERY,
+                              description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)',
+                              type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('status', openapi.IN_QUERY, description='status - active, matured, withdrawn',
+                              type=openapi.TYPE_STRING,enum=['active', 'matured', 'withdrawn'], required=False),
+        ]
+    )
+    def get(self, request, id):
+        start_date = self.request.query_params.get('start_date', None)
+        end_date = self.request.query_params.get('end_date', None)
+        inv_status = self.request.query_params.get('status', None)
+        if start_date and not is_valid_date_format(start_date):
+            return Response(data={'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        if end_date and not is_valid_date_format(end_date):
+            return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        queryset = self.get_queryset()
+        active_investment = queryset.aggregate(Sum('amount'))['amount__sum'] or 0
+        total_roi = 0
+        for itm in queryset:
+            total_roi += (itm.investment.interest_rate / 100) * itm.amount
+        active_investment_count = queryset.count()
+        if inv_status:
+            inv_status = inv_status.strip().upper()
+            queryset = queryset.filter(status=inv_status)
+        page = self.paginate_queryset(queryset)
+
+
+        # Custom response data
+        additional_data = {
+            'total_investment_amount': active_investment,
+            'total_investment_roi': total_roi,
+            'total_investment_count': active_investment_count,
+        }
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            response_data = {
+                'overview': additional_data,
+                'investments': serializer.data
+            }
+            return self.get_paginated_response(response_data)
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+    def get_queryset(self):
+        id = self.kwargs['id']
+        user = get_object_or_404(User, pk=id)
+        start_date = self.request.query_params.get('start_date', None)
+        end_date = self.request.query_params.get('end_date', None)
+        inv_status = self.request.query_params.get('status', None)
+        today = now().date()
+        start_date = start_date or today
+        end_date = end_date or today
+        queryset = UserInvestments.objects.filter(user = user).order_by('-due_date')
+        return queryset
+
+class AdminUserSavingsData(generics.GenericAPIView):
+    serializer_class = AdminUserSavingsDataSerializers
+    def get(self, request, id):
+        queryset = self.get_queryset()
+        print(queryset)
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        id = self.kwargs["id"]
+        user = get_object_or_404(User, pk=id)
+        queryset = UserSavings.objects.filter(user=user)
+        return queryset

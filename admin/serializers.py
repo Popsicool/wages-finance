@@ -9,7 +9,8 @@ from user.models import (
     UserInvestments,
     Loan,
     Activities,
-    CoporativeMembership
+    CoporativeMembership,
+    CoporativeActivities
 )
 from django.contrib import auth
 from rest_framework.exceptions import AuthenticationFailed, ParseError
@@ -401,3 +402,40 @@ class AdminLoanList(serializers.ModelSerializer):
 
 class CustomReferal(serializers.Serializer):
     referal_code = serializers.CharField(max_length=50)
+
+
+class AdminSingleUserCoporativeDetails(serializers.ModelSerializer):
+    class Meta:
+        model = CoporativeActivities
+        fields = ["created_at","amount", "balance"]
+
+class AdminUserInvestmentSerializer(serializers.ModelSerializer):
+    plan = serializers.CharField(source="investment.title")
+    duration = serializers.SerializerMethodField()
+    roi = serializers.SerializerMethodField()
+    class Meta:
+        model = UserInvestments
+        fields = ['plan', 'amount', 'duration', 'roi', 'due_date', 'status']
+    def get_roi(self, obj):
+        roi = obj.amount * (obj.investment.interest_rate / 100)
+        return roi
+    def get_duration(self, obj):
+        return 6
+class AdminUserInvestmentSerializerHistory(serializers.ModelSerializer):
+    plan = serializers.CharField(source="investment.title")
+    duration = serializers.SerializerMethodField()
+    roi = serializers.SerializerMethodField()
+    class Meta:
+        model = UserInvestments
+        fields = ['plan', 'amount', 'duration', 'roi', 'due_date', 'status']
+    def get_roi(self, obj):
+        roi = obj.amount * (obj.investment.interest_rate / 100)
+        return roi
+    def get_duration(self, obj):
+        return 6
+
+
+class AdminUserSavingsDataSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = UserSavings
+        fields = ["type", "cycle", 'amount']
