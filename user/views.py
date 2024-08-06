@@ -138,11 +138,11 @@ class OneTimeSubscription(generics.GenericAPIView):
                 referal.save()
             user.save()
             data = {
-                "balance": user.wallet_balance,
+                "balance": float(user.wallet_balance),
                 "is_subscribed": user.is_subscribed,
                 "activity": {
                     "title": new_activity.title,
-                    "amount": new_activity.amount,
+                    "amount": float(new_activity.amount),
                     "activity_type": new_activity.activity_type,
                     "created_at": new_activity.created_at
                 }
