@@ -144,7 +144,7 @@ class OneTimeSubscription(generics.GenericAPIView):
                     "title": new_activity.title,
                     "amount": float(new_activity.amount),
                     "activity_type": new_activity.activity_type,
-                    "created_at": new_activity.created_at
+                    "created_at": str(new_activity.created_at)
                 }
             }
             send_socket_user_notification(user.id, data)
