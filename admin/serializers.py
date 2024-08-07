@@ -10,7 +10,8 @@ from user.models import (
     Loan,
     Activities,
     CoporativeMembership,
-    CoporativeActivities
+    CoporativeActivities,
+    SavingsActivities
 )
 from django.contrib import auth
 from rest_framework.exceptions import AuthenticationFailed, ParseError
@@ -313,10 +314,12 @@ class SavingsTypeSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     phone = serializers.CharField(source='user.phone')
     email = serializers.EmailField(source='user.email')
+    end_date = serializers.DateField(source="withdrawal_date")
+    plan = serializers.CharField(source="type")
 
     class Meta:
         model = UserSavings
-        fields = ["id", "name", "phone", "email", "saved"]
+        fields = ["id","plan", "name", "phone", "email", "saved", "amount", "frequency", "start_date", "end_date"]
 
     def get_name(self, obj):
         return f"{obj.user.firstname} {obj.user.lastname}"
@@ -439,3 +442,8 @@ class AdminUserSavingsDataSerializers(serializers.ModelSerializer):
     class Meta:
         model = UserSavings
         fields = ["type", "cycle", 'amount']
+
+class AdminUserSavingsBreakdown(serializers.ModelSerializer):
+    class Meta:
+        model = SavingsActivities
+        fields = ["created_at", "amount", "balance"]

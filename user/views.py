@@ -307,6 +307,7 @@ class FundSavings(generics.GenericAPIView):
                 savings.goal_met = True
             savings.save()
             new_savings_activity = SavingsActivities.objects.create(savings=savings, amount=amount,
+                                                                    balance = savings.saved,
                                                                     user=user)
             new_savings_activity.save()
             return Response(data={"message": "success"}, status=status.HTTP_202_ACCEPTED)

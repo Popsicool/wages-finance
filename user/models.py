@@ -291,6 +291,7 @@ class SavingsActivities(models.Model):
         UserSavings, on_delete=models.CASCADE, related_name="savings_activities"
     )
     amount = models.IntegerField()
+    balance = models.BigIntegerField(default=0)
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='user_saving_activity')
     activity_type = models.CharField(

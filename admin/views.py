@@ -8,7 +8,8 @@ from user.models import (User,
                          InvestmentPlan,
                          UserInvestments,
                          Loan,
-                         CoporativeActivities
+                         CoporativeActivities,
+                         SavingsActivities
                          )
 from django.contrib.auth.models import Group
 from drf_yasg.utils import swagger_auto_schema
@@ -38,6 +39,7 @@ from .serializers import (
     AdminUserInvestmentSerializer,
     AdminUserInvestmentSerializerHistory,
     AdminUserSavingsDataSerializers,
+    AdminUserSavingsBreakdown,
 )
 from transaction.models import Transaction
 import random
@@ -987,7 +989,7 @@ class AdminUserInvestmentHistory(generics.GenericAPIView):
         today = now().date()
         start_date = start_date or today
         end_date = end_date or today
-        queryset = UserInvestments.objects.filter(user = user).order_by('-due_date')
+        queryset = UserInvestments.objects.filter(user = user, created_at__range=[start_date, end_date]).order_by('-due_date')
         return queryset
 
 class AdminUserSavingsData(generics.GenericAPIView):
@@ -995,11 +997,47 @@ class AdminUserSavingsData(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     def get(self, request, id):
         queryset = self.get_queryset()
-        print(queryset)
         serializer = self.serializer_class(queryset, many=True)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
     def get_queryset(self):
         id = self.kwargs["id"]
         user = get_object_or_404(User, pk=id)
         queryset = UserSavings.objects.filter(user=user)
+        return queryset
+
+class AdminUserSavingsBreakdown(generics.GenericAPIView):
+    serializer_class = AdminUserSavingsBreakdown
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('start_date', openapi.IN_QUERY,
+                              description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)',
+                              type=openapi.TYPE_STRING, required=False),
+        ]
+    )
+    def get(self, request, id):
+        start_date = self.request.query_params.get('start_date', None)
+        end_date = self.request.query_params.get('end_date', None)
+        if start_date and not is_valid_date_format(start_date):
+            return Response(data={'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        if end_date and not is_valid_date_format(end_date):
+            return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+    def get_queryset(self):
+        id = self.kwargs['id']
+        user = get_object_or_404(User, pk=id)
+        start_date = self.request.query_params.get('start_date', None)
+        end_date = self.request.query_params.get('end_date', None)
+        today = now().date()
+        start_date = start_date or today
+        end_date = end_date or today
+        queryset = SavingsActivities.objects.filter(user = user, created_at__range=[start_date, end_date]).order_by('-created_at')
         return queryset
