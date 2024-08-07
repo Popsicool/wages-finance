@@ -31,7 +31,7 @@ class UserActivitiesSerializer(serializers.Serializer):
             return {
                 "title": instance.title,
                 "amount": instance.amount,
-                "activity_type": instance.get_activity_type_display(),
+                "activity_type": instance.activity_type,
                 "created_at": instance.created_at,
                 "source": "activities"
             }
@@ -39,7 +39,7 @@ class UserActivitiesSerializer(serializers.Serializer):
             return {
                 "title": instance.savings.type,
                 "amount": instance.amount,
-                "activity_type": instance.get_activity_type_display(),
+                "activity_type": instance.activity_type,
                 "created_at": instance.created_at,
                 "source": "savings_activities"
             }
@@ -47,7 +47,7 @@ class UserActivitiesSerializer(serializers.Serializer):
             return {
                 "title": f"Cooporative {instance.activity_type.lower()}",
                 "amount": instance.amount,
-                "activity_type": instance.get_activity_type_display(),
+                "activity_type": instance.activity_type,
                 "created_at": instance.created_at,
                 "source": "coporative_activities"
             }

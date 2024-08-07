@@ -17,6 +17,7 @@ from notification.models import Notification
 from django.db.models import Sum, Count, Case, When, Value, BooleanField, Q
 from drf_yasg import openapi
 from utils.pagination import CustomPagination
+from datetime import timedelta
 from .serializers import (
     AdminLoginSerializer,
     AdminInviteSerializer,
@@ -260,6 +261,7 @@ class AdminOverview(views.APIView):
 
         start_date = start_date or today
         end_date = end_date or today
+        end_date += timedelta(days=1)
 
         transactions = Transaction.objects.all()
 
@@ -703,6 +705,7 @@ class AdminLoanDashboard(views.APIView):
 
         start_date = start_date or today
         end_date = end_date or today
+        end_date += timedelta(days=1)
 
         # Define the statuses
         approved_statuses = ['APPROVED', 'REPAYED', 'OVER-DUE', 'REPAYED']
@@ -892,6 +895,7 @@ class AdminUserCoporativeBreakdown(generics.GenericAPIView):
         today = now().date()
         start_date = start_date or today
         end_date = end_date or today
+        end_date += timedelta(days=1)
         return CoporativeActivities.objects.filter(user_coop__user=user, created_at__range=[start_date, end_date]).select_related('user_coop').order_by('-created_at')
 
 class AdminUserInvestmentBreakdown(generics.GenericAPIView):
@@ -989,6 +993,7 @@ class AdminUserInvestmentHistory(generics.GenericAPIView):
         today = now().date()
         start_date = start_date or today
         end_date = end_date or today
+        end_date += timedelta(days=1)
         queryset = UserInvestments.objects.filter(user = user, created_at__range=[start_date, end_date]).order_by('-due_date')
         return queryset
 
@@ -1024,6 +1029,7 @@ class AdminUserSavingsBreakdown(generics.GenericAPIView):
         if end_date and not is_valid_date_format(end_date):
             return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
         queryset = self.get_queryset()
+        print(queryset)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.serializer_class(page, many=True)
@@ -1038,6 +1044,8 @@ class AdminUserSavingsBreakdown(generics.GenericAPIView):
         end_date = self.request.query_params.get('end_date', None)
         today = now().date()
         start_date = start_date or today
+        
         end_date = end_date or today
+        end_date += timedelta(days=1)
         queryset = SavingsActivities.objects.filter(user = user, created_at__range=[start_date, end_date]).order_by('-created_at')
         return queryset
