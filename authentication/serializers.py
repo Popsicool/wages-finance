@@ -1,5 +1,5 @@
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
 from rest_framework import serializers
 from django.contrib import auth
 from rest_framework.exceptions import AuthenticationFailed, ParseError
@@ -197,6 +197,7 @@ class LoginSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
         max_length=68, min_length=8, write_only=True)
 
+
     class Meta:
         model = User
         fields = ['id','email', 'password', 'tokens']
@@ -204,25 +205,28 @@ class LoginSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         email = attrs.get('email', '')
         password = attrs.get('password', '')
-        valid_user = User.objects.filter(email = email).first()
+        valid_user = User.objects.filter(email=email).first()
         if not valid_user:
-            valid_user = User.objects.filter(phone = email).first()
+            valid_user = User.objects.filter(phone=email).first()
             if valid_user:
                 email = valid_user.email
         if not valid_user:
-            raise AuthenticationFailed('invalid credentials, try again')
+            raise AuthenticationFailed('Invalid credentials, try again')
         if not valid_user.is_active:
-            raise AuthenticationFailed('account disabled, contact admin')
+            raise AuthenticationFailed('Account disabled, contact admin')
         user = auth.authenticate(email=email, password=password)
         if not user:
-            raise AuthenticationFailed('invalid credentials, try again')
+            raise AuthenticationFailed('Invalid credentials, try again')
         if not user.is_verified:
+
             raise AuthenticationFailed('please verify your account')
+
         return {
             'id': user.id,
             'email': user.email,
             'tokens': user.tokens,
         }
+
 
 
 
