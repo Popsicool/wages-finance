@@ -196,21 +196,10 @@ class LoginSerializer(serializers.ModelSerializer):
     email = serializers.CharField(max_length=255, min_length=3)
     password = serializers.CharField(
         max_length=68, min_length=8, write_only=True)
-    firstname = serializers.CharField(
-        max_length=255, min_length=3, read_only=True)
-    lastname = serializers.CharField(
-        max_length=255, min_length=3, read_only=True)
-    role = serializers.CharField(
-        max_length=255, min_length=3, read_only=True)
-    pin = serializers.SerializerMethodField(read_only=True)
-    is_subscribed = serializers.BooleanField(read_only=True)
-    is_verified = serializers.BooleanField(read_only=True)
-    bvn_verified = serializers.BooleanField(read_only=True)
-    phone = serializers.CharField(read_only=True)
 
     class Meta:
         model = User
-        fields = ['id','email', 'password', 'tokens', 'firstname', 'lastname', 'role', 'pin', 'is_subscribed', 'is_verified', 'phone', 'bvn_verified']
+        fields = ['id','email', 'password', 'tokens']
 
     def validate(self, attrs):
         email = attrs.get('email', '')
@@ -229,23 +218,11 @@ class LoginSerializer(serializers.ModelSerializer):
             raise AuthenticationFailed('invalid credentials, try again')
         if not user.is_verified:
             raise AuthenticationFailed('please verify your account')
-        role = user.role
         return {
             'id': user.id,
             'email': user.email,
-            'firstname': user.firstname,
-            'lastname': user.lastname,
-            'role': role,
             'tokens': user.tokens,
-            'pin': user.pin,
-            'is_subscribed': user.is_subscribed,
-            'is_verified': user.is_verified,
-            'phone': user.phone,
-            'bvn_verified': True if user.bvn else False
         }
-    def get_pin(self, obj):
-        return True if obj['pin'] else False
-
 
 
 

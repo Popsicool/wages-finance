@@ -54,18 +54,21 @@ class UserActivitiesSerializer(serializers.Serializer):
         return super().to_representation(instance)
 
 class UserDashboardSerializer(serializers.ModelSerializer):
-    name = serializers.SerializerMethodField()
     wallet = serializers.SerializerMethodField()
     notifications = serializers.SerializerMethodField()
     bank_name = serializers.SerializerMethodField()
+    bvn_verified = serializers.SerializerMethodField()
+    pin = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["name", "wallet", "notifications", "referal_code", "account_name", "account_number", "bank_name"]
-    def get_name(self, obj):
-        return obj.lastname
+        fields = ["id","firstname","lastname","pin","email", "wallet", "notifications", "referal_code", "account_name", "account_number", "bank_name", "is_subscribed", 'is_verified', 'bvn_verified', "phone"]
     def get_bank_name(self, obj):
         return "Safe Heaven Microfinance Bank"
+    def get_bvn_verified(self, obj):
+        return True if obj.bvn else False
+    def get_pin(self, obj):
+        return True if obj.pin else False
 
     def get_wallet(self, obj):
         return obj.wallet_balance
