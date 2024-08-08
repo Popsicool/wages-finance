@@ -31,6 +31,7 @@ class UserActivitiesSerializer(serializers.Serializer):
             return {
                 "title": instance.title,
                 "amount": instance.amount,
+                "description": f"{instance.activity_type.lower()} of N{instance.amount} ",
                 "activity_type": instance.activity_type,
                 "created_at": instance.created_at,
                 "source": "activities"
@@ -39,6 +40,7 @@ class UserActivitiesSerializer(serializers.Serializer):
             return {
                 "title": instance.savings.type,
                 "amount": instance.amount,
+                "description": f"{instance.activity_type.lower()} of N{instance.amount} ",
                 "activity_type": "DEBIT" if instance.activity_type == "WITHDRAWAL" else "CREDIT",
                 "created_at": instance.created_at,
                 "source": "savings_activities"
@@ -47,6 +49,7 @@ class UserActivitiesSerializer(serializers.Serializer):
             return {
                 "title": f"Cooporative {instance.activity_type.lower()}",
                 "amount": instance.amount,
+                "description": f"{instance.activity_type.lower()} of N{instance.amount} ",
                 "activity_type": "DEBIT" if instance.activity_type == "WITHDRAWAL" else "CREDIT",
                 "created_at": instance.created_at,
                 "source": "coporative_activities"
@@ -143,7 +146,8 @@ class UserSavingsSerializers(serializers.ModelSerializer):
         all_savings_activities = SavingsActivities.objects.filter(savings=obj).order_by("-created_at")
         activities_list = [
             {
-                "activity_type": activity.activity_type,
+                "activity_type": "DEBIT" if activity.activity_type == "WITHDRAWAL" else "CREDIT",
+                "description": f"{activity.activity_type.lower()} of N{activity.amount} ",
                 "amount": activity.amount,
                 "date": activity.created_at
             }
@@ -192,7 +196,8 @@ class CoporativeDashboardSerializer(serializers.ModelSerializer):
         all_cooporative_activities = CoporativeActivities.objects.filter(user_coop=obj).order_by("-created_at")
         activities_list = [
             {
-                "activity_type": activity.activity_type,
+                "activity_type": "DEBIT" if activity.activity_type == "WITHDRAWAL" else "CREDIT",
+                "description": f"{activity.activity_type.lower()} of N{activity.amount} ",
                 "amount": activity.amount,
                 "date": activity.created_at
             }
