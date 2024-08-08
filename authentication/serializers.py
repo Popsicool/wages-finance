@@ -196,11 +196,11 @@ class LoginSerializer(serializers.ModelSerializer):
     email = serializers.CharField(max_length=255, min_length=3)
     password = serializers.CharField(
         max_length=68, min_length=8, write_only=True)
-
+    bvn_verified = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = User
-        fields = ['id','email', 'password', 'tokens', 'is_verified']
+        fields = ['id','email', 'password', 'tokens', 'is_verified','bvn_verified' ]
 
     def validate(self, attrs):
         email = attrs.get('email', '')
@@ -225,7 +225,8 @@ class LoginSerializer(serializers.ModelSerializer):
             'id': user.id,
             'email': user.email,
             'tokens': user.tokens,
-            'is_verified': user.is_verified
+            'is_verified': user.is_verified,
+            'bvn_verified': True if user.bvn else False
         }
 
 
