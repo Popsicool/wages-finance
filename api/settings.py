@@ -46,6 +46,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_yasg',
     'channels',
+    'cloudinary',
+    'cloudinary_storage',
 
     # created apps
     'authentication',
@@ -203,6 +205,13 @@ STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 MEDIA_URL = 'media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': config("CLOUD_NAME"),
+    'API_KEY': config("API_KEY"),
+    'API_SECRET': config("API_SECRET")
+}
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.RawMediaCloudinaryStorage'
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
@@ -300,3 +309,5 @@ LOGGING = {
 }
 
 logging.config.dictConfig(LOGGING)
+
+
