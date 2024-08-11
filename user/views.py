@@ -25,7 +25,8 @@ from .serializers import (
     UserInvestment,
     UserInvestmentHistory,
     VerifyResetPinTokenSerializer,
-    ChangePinSerializer
+    ChangePinSerializer,
+    LoanDetailsSerializer
 )
 from .models import (Activities,
                      User,
@@ -36,7 +37,8 @@ from .models import (Activities,
                      ForgetPasswordToken,
                      SavingsActivities,
                      CoporativeActivities,
-                     BANK_LISTS
+                     BANK_LISTS,
+                     Loan
                      )
 from utils.pagination import CustomPagination
 from django.db import transaction
@@ -375,6 +377,9 @@ class LoanRequestView(generics.GenericAPIView):
 
             return Response(data={"message": "Not up to 6 months as a coporative member"}, status=status.HTTP_403_FORBIDDEN)
         serializer = self.serializer_class(data=request.data)
+        # active_loan = Loan.objects.filter(user=user, is_active=True).first()
+        # if active_loan:
+        #     return Response(data={"message": "You have an outstanding loan"}, status=status.HTTP_403_FORBIDDEN)
         serializer.is_valid(raise_exception=True)
         amount = serializer.validated_data["amount"]
         if amount > (membership.balance * 2):
@@ -560,6 +565,15 @@ def test_socket(request, id):
     send_socket_user_notification(id, data)
     return JsonResponse(data={"message": "success"}, status=status.HTTP_200_OK)
 
+
+class LoanDetailsSerializer(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = LoanDetailsSerializer
+    def get(self, request):
+        user = request.user
+        loan = Loan.objects.filter(user=user).last()
+        serializer = self.serializer_class(loan)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 
 

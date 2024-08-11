@@ -197,6 +197,7 @@ class LoginSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
         max_length=68, min_length=8, write_only=True)
     bvn_verified = serializers.BooleanField(read_only=True)
+    is_verified = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = User

@@ -240,8 +240,27 @@ class LoanRequestSerializer(serializers.ModelSerializer):
         attrs['guarantor2'] = g2
         return attrs
 
-# class ReferalInnerSerializer(serializers.ModelSerializer):
-#     class Meta:
+class LoanDetailsSerializer(serializers.ModelSerializer):
+    interest = serializers.SerializerMethodField()
+    class Meta:
+        model = Loan
+        fields = [
+            'id', 'amount',
+            'amount_repayed', 'balance', 'duration_in_months',
+            'interest_rate', 'status', 'date_requested',
+            'date_approved', 'repayment_details', 'interest'
+        ]
+
+    def get_interest(self, obj):
+        """Calculate the total interest on the loan based on repayment details."""
+        total_interest = 0
+        for repayment in obj.repayment_details.values():
+            payment_amount = repayment['amount']
+            principal_payment = obj.amount / obj.duration_in_months
+            interest_payment = payment_amount - principal_payment
+            total_interest += interest_payment
+
+        return round(total_interest)
 
 
 class ReferalSerializer(serializers.ModelSerializer):

@@ -4,6 +4,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.validators import MinLengthValidator, MinValueValidator, MaxValueValidator
 from datetime import timedelta
 from datetime import date
+from dateutil.relativedelta import relativedelta
 # Create your models here.
 
 
@@ -369,11 +370,16 @@ class Loan(models.Model):
     date_requested = models.DateTimeField(auto_now_add=True)
     date_approved = models.DateField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
+    repayment_details = models.JSONField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
         if self._state.adding:
             self.balance = self.amount + \
                 (self.amount * (self.interest_rate / 100))
+        else:
+            if self.status == "APPROVED" and not self.repayment_details:
+                self.date_approved = date.today()
+                self.populate_repayment_details()
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -389,6 +395,28 @@ class Loan(models.Model):
         if due_date and date.today() > due_date:
             return True
         return False
+    def populate_repayment_details(self):
+        """Populate the repayment_details field with the required data."""
+        if not self.date_approved:
+            self.date_approved = date.today()
+
+        total_amount = self.amount
+        monthly_payment = self.amount / self.duration_in_months
+        repayment_details = {}
+
+        for i in range(1, self.duration_in_months + 1):
+            due_date = self.date_approved + relativedelta(months=i)
+            interest = (total_amount * (self.interest_rate / 100))
+            amount_due = monthly_payment + interest
+
+            repayment_details[due_date.strftime("%d/%m/%Y")] = {
+                "paid_status": False,
+                "amount": round(amount_due)
+            }
+
+            total_amount -= monthly_payment
+
+        self.repayment_details = repayment_details
 
 
 BANK_LISTS = [
