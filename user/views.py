@@ -26,7 +26,9 @@ from .serializers import (
     UserInvestmentHistory,
     VerifyResetPinTokenSerializer,
     ChangePinSerializer,
-    LoanDetailsSerializer
+    LoanDetailsSerializer,
+    AllLoansSerializer,
+    RepaymentSerializer
 )
 from .models import (Activities,
                      User,
@@ -43,7 +45,7 @@ from .models import (Activities,
 from utils.pagination import CustomPagination
 from django.db import transaction
 from utils.sms import SendSMS
-
+from datetime import datetime
 # Create your views here.
 
 
@@ -569,19 +571,153 @@ def test_socket(request, id):
 class LoanDetailsSerializer(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = LoanDetailsSerializer
-    def get(self, request):
+    def get(self, request, id):
+        loan = get_object_or_404(Loan, pk=id)
         user = request.user
-        loan = Loan.objects.filter(user=user).last()
+        if loan.user != user:
+            return Response({"message": "Invalid pin"}, status=status.HTTP_401_UNAUTHORIZED)
         serializer = self.serializer_class(loan)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
+class UserLoanHistory(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = AllLoansSerializer
+    def get(self, request):
+        user = request.user
+        loan = Loan.objects.filter(user=user).order_by("-date_requested")
+        serializer = self.serializer_class(loan, many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
 
+class UserRepayLoan(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = RepaymentSerializer
+    def post(self, request, id):
+        loan = get_object_or_404(Loan, pk=id)
+        user = request.user
+        
+        # Ensure the user is authorized to make this request
+        if loan.user != user:
+            return Response({"message": "Unauthorized access"}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Validate the request data
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        repayment_indices = serializer.validated_data['repayment_indices']
+        
+        # Check the PIN
+        if serializer.validated_data["pin"] != user.pin:
+            return Response({"message": "Invalid pin"}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        repayment_details = loan.repayment_details
+
+        # Sort repayments by date
+        sorted_repayments = sorted(
+            repayment_details.items(), 
+            key=lambda x: datetime.strptime(x[0], "%d/%m/%Y")
+        )
+
+        amounts_to_repay = []
+        keys = [item[0] for item in sorted_repayments]
+
+        # Validate repayment indices and calculate total amount
+        for index in repayment_indices:
+            if index - 1 < 0 or index - 1 >= len(keys):
+                return Response(
+                    {"message": f"Index {index} is out of range."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            key = keys[index - 1]  # -1 for zero-based index
+            repayment = repayment_details.get(key)
+            
+            if repayment['paid_status']:
+                return Response(
+                    {"message": f"Repayment for date {key} has already been paid."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            amounts_to_repay.append(repayment['amount'])
+
+        total_amount = sum(amounts_to_repay)
+
+        # Check if the user has sufficient funds
+        if user.wallet_balance < total_amount:
+            return Response({"message": "Insufficient funds"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Process the repayment
+        with transaction.atomic():
+            user.wallet_balance -= total_amount
+            
+            for index in repayment_indices:
+                key = keys[index - 1]  # -1 for zero-based index
+                repayment_details[key]['paid_status'] = True
+            
+            loan.repayment_details = repayment_details
+            
+            # Check if all repayments are completed
+            all_repaid = all(detail['paid_status'] for detail in repayment_details.values())
+            if all_repaid:
+                loan.is_active = False
+                loan.status = "REPAYED"
+                loan.balance = 0
+            else:
+                loan.balance -= total_amount
+            loan.amount_repayed += total_amount
+            
+            # Log the activity
+            Activities.objects.create(title="Loan Repayment", amount=total_amount, user=user)
+            
+            # Save changes
+            loan.save()
+            user.save()
+
+        return Response(data={"message": "Success"}, status=status.HTTP_200_OK)
 
 class Get_Banks(views.APIView):
     def get(self, request):
         return Response(data=BANK_LISTS, status=status.HTTP_200_OK)
 
 
+class LiquidateLoan(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class =  SetPinSerializer
+    def post(self, request, id):
+        loan = get_object_or_404(Loan, pk=id)
+        user = request.user
+        if loan.user != user:
+            return Response({"message": "Unauthorized access"}, status=status.HTTP_401_UNAUTHORIZED)
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        # Check the PIN
+        if serializer.validated_data["pin"] != user.pin:
+            return Response({"message": "Invalid pin"}, status=status.HTTP_401_UNAUTHORIZED)
+        repayment_details = loan.repayment_details
+        total_amount_due = sum(
+            repayment['amount'] for repayment in repayment_details.values() if not repayment['paid_status']
+        )
+        # Check if the user has sufficient funds
+        if user.wallet_balance < total_amount_due:
+            return Response({"message": "Insufficient funds"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Mark all repayments as paid
+        with transaction.atomic():
+            for repayment in repayment_details.values():
+                repayment['paid_status'] = True
+            loan.repayment_details = repayment_details
+            loan.is_active = False
+            loan.status = "REPAYED"
+            loan.amount_repayed += total_amount_due
+            loan.balance = 0
+            # Deduct the total amount from the user's wallet balance
+            user.wallet_balance -= total_amount_due
+            # Log the activity
+            Activities.objects.create(title="Loan liquidation", amount=total_amount_due, user=user)
+
+            # Save changes
+            loan.save()
+            user.save()
+
+        return Response(data={"message": "All repayments marked as paid"}, status=status.HTTP_200_OK)
 
 '''
 {"message": 

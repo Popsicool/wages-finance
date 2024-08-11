@@ -373,13 +373,14 @@ class Loan(models.Model):
     repayment_details = models.JSONField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
-        if self._state.adding:
-            self.balance = self.amount + \
-                (self.amount * (self.interest_rate / 100))
-        else:
-            if self.status == "APPROVED" and not self.repayment_details:
-                self.date_approved = date.today()
-                self.populate_repayment_details()
+        # Calculate the balance when the loan is created
+        # if self._state.adding:
+        #     self.balance = self.amount + (self.amount * (self.interest_rate / 100))
+        # Update balance and repayment details when status is changed to 'APPROVED'
+        if self.status == "APPROVED" and not self.repayment_details:
+            self.date_approved = date.today()
+            self.populate_repayment_details()
+            self.balance = self.amount + self.calculate_total_interest()
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -395,6 +396,7 @@ class Loan(models.Model):
         if due_date and date.today() > due_date:
             return True
         return False
+
     def populate_repayment_details(self):
         """Populate the repayment_details field with the required data."""
         if not self.date_approved:
@@ -406,7 +408,7 @@ class Loan(models.Model):
 
         for i in range(1, self.duration_in_months + 1):
             due_date = self.date_approved + relativedelta(months=i)
-            interest = (total_amount * (self.interest_rate / 100))
+            interest = (total_amount * (self.interest_rate / 100)) / self.duration_in_months
             amount_due = monthly_payment + interest
 
             repayment_details[due_date.strftime("%d/%m/%Y")] = {
@@ -417,6 +419,16 @@ class Loan(models.Model):
             total_amount -= monthly_payment
 
         self.repayment_details = repayment_details
+
+    def calculate_total_interest(self):
+        """Calculate the total interest based on repayment details."""
+        total_interest = 0
+        for repayment in self.repayment_details.values():
+            payment_amount = repayment['amount']
+            principal_payment = self.amount / self.duration_in_months
+            interest_payment = payment_amount - principal_payment
+            total_interest += interest_payment
+        return round(total_interest)
 
 
 BANK_LISTS = [

@@ -240,6 +240,10 @@ class LoanRequestSerializer(serializers.ModelSerializer):
         attrs['guarantor2'] = g2
         return attrs
 
+class AllLoansSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Loan
+        fields = ["id", "amount", 'amount_repayed','status']
 class LoanDetailsSerializer(serializers.ModelSerializer):
     interest = serializers.SerializerMethodField()
     class Meta:
@@ -262,6 +266,12 @@ class LoanDetailsSerializer(serializers.ModelSerializer):
 
         return round(total_interest)
 
+class RepaymentSerializer(serializers.Serializer):
+    pin = serializers.IntegerField(min_value=1000, max_value=9999)
+    repayment_indices = serializers.ListField(
+        child=serializers.IntegerField(), 
+        min_length=1
+    )
 
 class ReferalSerializer(serializers.ModelSerializer):
     referals = serializers.SerializerMethodField()
