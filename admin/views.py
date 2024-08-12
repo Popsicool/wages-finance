@@ -12,6 +12,7 @@ from user.models import (User,
                          SavingsActivities
                          )
 from django.contrib.auth.models import Group
+from django.utils.dateparse import parse_date
 from drf_yasg.utils import swagger_auto_schema
 from notification.models import Notification
 from django.db.models import Sum, Count, Case, When, Value, BooleanField, Q
@@ -41,6 +42,7 @@ from .serializers import (
     AdminUserInvestmentSerializerHistory,
     AdminUserSavingsDataSerializers,
     AdminUserSavingsBreakdown,
+    AdminReferralList
 )
 from transaction.models import Transaction
 import random
@@ -1049,3 +1051,58 @@ class AdminUserSavingsBreakdown(generics.GenericAPIView):
         end_date += timedelta(days=1)
         queryset = SavingsActivities.objects.filter(user = user, created_at__range=[start_date, end_date]).order_by('-created_at')
         return queryset
+
+class AdminListReferal(generics.GenericAPIView):
+    # pagination_class = []
+    serializer_class = AdminReferralList
+    pagination_class = CustomPagination
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('start_date', openapi.IN_QUERY,
+                              description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)',
+                              type=openapi.TYPE_STRING, required=False),
+        ]
+    )
+    def get(self, request):
+        start_date = request.query_params.get('start_date', None)
+        end_date = request.query_params.get('end_date', None)
+        if start_date and not is_valid_date_format(start_date):
+            return Response(data={'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        if end_date and not is_valid_date_format(end_date):
+            return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        today = now().date()
+        start_date = start_date or today
+        end_date = end_date or today
+        end_date += timedelta(days=1)
+        queryset = self.get_queryset()
+
+        # Total number of referrals where is_subscribed=True
+        total_referrals = queryset.filter(user__is_subscribed=True).count()
+
+        # Total number of referrals where is_subscribed=True within the filtered period
+        filtered_referrals = queryset.filter(user__is_subscribed=True).filter(created_at__range=[start_date, end_date]).count()
+
+        # Sum of total_referal_balance
+        total_referral_balance_sum = queryset.aggregate(Sum('total_referal_balance'))['total_referal_balance__sum']
+
+        # Filter users who have referred at least one person with is_subscribed=True
+        users_with_referals = queryset.annotate(
+            referral_count=Count('user__is_subscribed')
+        ).filter(referral_count__gte=1)
+        page = self.paginate_queryset(users_with_referals)
+
+        # Paginate the filtered users
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            response_data = {
+                'total_referrals': total_referrals,
+                'filtered_referrals': filtered_referrals,
+                'total_referral_balance_sum': total_referral_balance_sum,
+                'users': serializer.data
+            }
+            return self.get_paginated_response(response_data)
+        serializer = self.serializer_class(users_with_referals, many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        return User.objects.all()

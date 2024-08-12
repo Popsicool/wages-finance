@@ -140,20 +140,27 @@ class EmailCodeVerificationSerializer(serializers.ModelSerializer):
         attrs['uid64'] = urlsafe_base64_encode(smart_bytes(user.id))
         return attrs
 
+
 class UpdateAdminSerializer(serializers.Serializer):
-    status = serializers.ChoiceField(choices=["active", 'inactive'], required=False)
+    status = serializers.ChoiceField(
+        choices=["active", 'inactive'], required=False)
     role = serializers.ChoiceField(
         choices=["Administrator", "Accountant", "Customer-support", "Loan-manager"], required=False)
+
+
 class GetAdminMembersSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ["id","firstname", "lastname", "email", "is_active", "role"]
+        fields = ["id", "firstname", "lastname", "email", "is_active", "role"]
+
     def get_role(self, obj):
         groups = obj.groups.all()
         if groups.exists():
             return groups[0].name
         return None
+
 
 class AdminInviteSerializer(serializers.Serializer):
     def validate(self, attrs):
@@ -170,15 +177,19 @@ class AdminInviteSerializer(serializers.Serializer):
     role = serializers.ChoiceField(
         choices=["Administrator", "Accountant", "Customer-support", "Loan-manager"], required=False)
 
+
 class AdminTransactionSerializer(serializers.ModelSerializer):
     firstname = serializers.CharField(source="user.firstname")
     email = serializers.EmailField(source="user.email")
     user_id = serializers.IntegerField(source="user.id")
     lastname = serializers.CharField(source="user.lastname")
     phone = serializers.CharField(source="user.phone")
+
     class Meta:
         model = Transaction
-        fields = ["id", "firstname", "lastname","email","phone", "amount", "status", "description", "user_id", "type"]
+        fields = ["id", "firstname", "lastname", "email", "phone",
+                  "amount", "status", "description", "user_id", "type"]
+
 
 class AdminCreateInvestmentSerializer(serializers.ModelSerializer):
     title = serializers.CharField(max_length=255)
@@ -319,7 +330,8 @@ class SavingsTypeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserSavings
-        fields = ["id","plan", "name", "phone", "email", "saved", "amount", "frequency", "start_date", "end_date"]
+        fields = ["id", "plan", "name", "phone", "email", "saved",
+                  "amount", "frequency", "start_date", "end_date"]
 
     def get_name(self, obj):
         return f"{obj.user.firstname} {obj.user.lastname}"
@@ -334,10 +346,13 @@ class SingleSavingsSerializer(serializers.ModelSerializer):
         model = UserSavings
         fields = ["title", "user", "amount", "saved", "frequency",
                   "start_date", "end_date", "amount_per_savings"]
+
     def get_title(self, obj):
         return obj.type
+
     def get_end_date(self, obj):
         return obj.withdrawal_date
+
     def get_amount_per_savings(self, obj):
         start_date = obj.start_date
         end_date = obj.withdrawal_date
@@ -374,10 +389,11 @@ class AdminLoanList(serializers.ModelSerializer):
 
     class Meta:
         model = Loan
-        fields = ["id","user_id", "firstname", "lastname", "amount",
-                  "date_requested", "phone", "email","profile_picture",
+        fields = ["id", "user_id", "firstname", "lastname", "amount",
+                  "date_requested", "phone", "email", "profile_picture",
                   "duration_in_months", "interest_rate",
                   "date_approved", "status", "guarantors"]
+
     def get_guarantors(self, obj):
         guarantors = []
         if obj.guarantor1:
@@ -399,9 +415,10 @@ class AdminLoanList(serializers.ModelSerializer):
             }
             guarantors.append(details2)
         return guarantors
-    
+
     def get_profile_picture(self, obj):
         return obj.user.profile_picture.url if obj.user.profile_picture else None
+
 
 class CustomReferal(serializers.Serializer):
     referal_code = serializers.CharField(max_length=50)
@@ -410,30 +427,39 @@ class CustomReferal(serializers.Serializer):
 class AdminSingleUserCoporativeDetails(serializers.ModelSerializer):
     class Meta:
         model = CoporativeActivities
-        fields = ["created_at","amount", "balance"]
+        fields = ["created_at", "amount", "balance"]
+
 
 class AdminUserInvestmentSerializer(serializers.ModelSerializer):
     plan = serializers.CharField(source="investment.title")
     duration = serializers.SerializerMethodField()
     roi = serializers.SerializerMethodField()
+
     class Meta:
         model = UserInvestments
         fields = ['plan', 'amount', 'duration', 'roi', 'due_date', 'status']
+
     def get_roi(self, obj):
         roi = obj.amount * (obj.investment.interest_rate / 100)
         return roi
+
     def get_duration(self, obj):
         return 6
+
+
 class AdminUserInvestmentSerializerHistory(serializers.ModelSerializer):
     plan = serializers.CharField(source="investment.title")
     duration = serializers.SerializerMethodField()
     roi = serializers.SerializerMethodField()
+
     class Meta:
         model = UserInvestments
         fields = ['plan', 'amount', 'duration', 'roi', 'due_date', 'status']
+
     def get_roi(self, obj):
         roi = obj.amount * (obj.investment.interest_rate / 100)
         return roi
+
     def get_duration(self, obj):
         return 6
 
@@ -443,7 +469,37 @@ class AdminUserSavingsDataSerializers(serializers.ModelSerializer):
         model = UserSavings
         fields = ["type", "cycle", 'amount']
 
+
 class AdminUserSavingsBreakdown(serializers.ModelSerializer):
     class Meta:
         model = SavingsActivities
         fields = ["created_at", "amount", "balance"]
+
+
+class AdminReferralList(serializers.ModelSerializer):
+    referral_count = serializers.SerializerMethodField()
+    referees = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'firstname', 'lastname', 'total_referal_balance', 'referral_count', 'referees']
+
+    def get_referral_count(self, obj):
+        # Use obj.user_set instead of querying the database again.
+        return obj.user_set.filter(is_subscribed=True).count()
+
+    def get_referees(self, obj):
+        referees = obj.user_set.filter(is_subscribed=True)
+        referees_list = []
+
+        for referal in referees:
+            referal_data = {
+                'id': referal.id,
+                'firstname': referal.firstname,
+                'lastname': referal.lastname,
+                'profile_picture': referal.profile_picture.url if referal.profile_picture else None,
+                'created_at': referal.created_at,
+            }
+            referees_list.append(referal_data)
+
+        return referees_list
