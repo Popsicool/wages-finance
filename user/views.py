@@ -316,6 +316,47 @@ class FundSavings(generics.GenericAPIView):
             new_savings_activity.save()
             return Response(data={"message": "success"}, status=status.HTTP_202_ACCEPTED)
 
+class CancelSavings(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = SetPinSerializer
+    def post(self, request, id):
+        user = request.user
+        if id not in [1, 2, 3, 4, 5]:
+            return Response(data={"message": "invalid option"}, status=status.HTTP_400_BAD_REQUEST)
+
+        option_types = {1: "BIRTHDAY", 2: "CAR-PURCHASE",
+                        3: "VACATION", 4: "GADGET-PURCHASE", 5: "MISCELLANEOUS"}
+        serializer = self.serializer_class(data = request.data)
+        serializer.is_valid(raise_exception=True)
+        pin = serializer.validated_data["pin"]
+        if user.pin != pin:
+            return Response(data={"message": "invalid pin"}, status=status.HTTP_403_FORBIDDEN)
+            
+        user_option = option_types.get(id)
+        savings = UserSavings.objects.filter(
+            user=user, type=user_option).first()
+        if not savings:
+            return Response(data={"message": "Set savings option first"}, status=status.HTTP_400_BAD_REQUEST)
+        if not savings.withdrawal_date:
+            return Response(data={"message": "You don't have a savings of this type"}, status=status.HTTP_400_BAD_REQUEST)
+        # if savings.withdrawal_date > date.today():
+        penalty = savings.save * 0.02
+        refund = savings.save - penalty
+        with transaction.atomic():
+            user.wallet_balance += refund
+            savings.withdrawal_date = None
+            savings.withdrawal_date = None
+            savings.start_date = None
+            savings.amount = 0
+            savings.saved = 0
+            savings.cancel_date = date.today()
+            savings.goal_met = False
+            Activities.objects.create(title="Savings Payment", amount=refund, user=user, activity_type="CREDIT")
+            savings.save()
+            user.save()
+        
+        
+
 
 class WithdrawalView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]

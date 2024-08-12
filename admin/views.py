@@ -262,6 +262,8 @@ class AdminOverview(views.APIView):
             return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
         start_date = start_date or today
+        if end_date:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d')
         end_date = end_date or today
         end_date += timedelta(days=1)
 
@@ -706,6 +708,8 @@ class AdminLoanDashboard(views.APIView):
             return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
         start_date = start_date or today
+        if end_date:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d')
         end_date = end_date or today
         end_date += timedelta(days=1)
 
@@ -896,6 +900,8 @@ class AdminUserCoporativeBreakdown(generics.GenericAPIView):
         end_date = self.request.query_params.get('end_date', None)
         today = now().date()
         start_date = start_date or today
+        if end_date:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d')
         end_date = end_date or today
         end_date += timedelta(days=1)
         return CoporativeActivities.objects.filter(user_coop__user=user, created_at__range=[start_date, end_date]).select_related('user_coop').order_by('-created_at')
@@ -994,6 +1000,8 @@ class AdminUserInvestmentHistory(generics.GenericAPIView):
         inv_status = self.request.query_params.get('status', None)
         today = now().date()
         start_date = start_date or today
+        if end_date:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d')
         end_date = end_date or today
         end_date += timedelta(days=1)
         queryset = UserInvestments.objects.filter(user = user, created_at__range=[start_date, end_date]).order_by('-due_date')
@@ -1046,7 +1054,8 @@ class AdminUserSavingsBreakdown(generics.GenericAPIView):
         end_date = self.request.query_params.get('end_date', None)
         today = now().date()
         start_date = start_date or today
-        
+        if end_date:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d')
         end_date = end_date or today
         end_date += timedelta(days=1)
         queryset = SavingsActivities.objects.filter(user = user, created_at__range=[start_date, end_date]).order_by('-created_at')
@@ -1073,6 +1082,8 @@ class AdminListReferal(generics.GenericAPIView):
             return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
         today = now().date()
         start_date = start_date or today
+        if end_date:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d')
         end_date = end_date or today
         end_date += timedelta(days=1)
         queryset = self.get_queryset()
