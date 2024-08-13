@@ -272,10 +272,42 @@ class UserSavings(models.Model):
         choices=SAVINGS_FREQUENCY_CHOICE,
         default=SAVINGS_FREQUENCY_CHOICE[0][0]
     )
+    
     time = models.TimeField(null=True, blank=True)
+    payment_details = models.JSONField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    def calculate_payment_details(self):
+        if not self.start_date or not self.withdrawal_date:
+            return
+        
+        payment_details = {}
+        current_date = self.start_date + relativedelta(days=1)
 
+        while current_date <= self.withdrawal_date:
+            payment_details[current_date.strftime('%d/%m/%Y')] = {"amount": self.amount, "paid_status": False}
+            
+            if self.frequency == 'DAILY':
+                current_date += relativedelta(days=1)
+            elif self.frequency == 'WEEKLY':
+                current_date += relativedelta(weeks=1)
+            elif self.frequency == 'MONTHLY':
+                current_date += relativedelta(months=1)
+            else:
+                break
+
+        self.payment_details = payment_details
+        self.save()
+    def mark_payment_as_made(self, date, amount):
+        date_str = date.strftime('%d/%m/%Y')
+        if date_str in self.payment_details and self.payment_details[date_str]["paid_status"] is True:
+            self.payment_details[date_str] = {"amount": (self.payment_details[date_str]["amount"] + amount), "paid_status": True}
+        elif date_str not in self.payment_details:
+            self.payment_details[date_str] = {"amount": amount, "paid_status": True}
+        else:
+            self.payment_details[date_str] = {"amount": amount, "paid_status": True}
+        
+        self.save()
     def __str__(self):
         return f"{self.user.lastname} - {self.type} - {self.amount} - {self.start_date} - {self.withdrawal_date}"
 
@@ -304,7 +336,6 @@ class SavingsActivities(models.Model):
 
     def __str__(self):
         return f"{self.amount} - {self.savings.type} by {self.user.firstname} on {self.created_at}"
-
 
 class CoporativeMembership(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)

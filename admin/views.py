@@ -1117,3 +1117,4 @@ class AdminListReferal(generics.GenericAPIView):
         return Response(data=serializer.data, status=status.HTTP_200_OK)
     def get_queryset(self):
         return User.objects.all()
+    

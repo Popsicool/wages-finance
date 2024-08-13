@@ -7,6 +7,7 @@ import random
 from django.utils import timezone
 from datetime import timedelta, date
 from itertools import chain
+from decimal import Decimal
 from operator import attrgetter
 from notification.models import Notification
 from .serializers import (
@@ -190,12 +191,10 @@ class NewSavingsView(generics.GenericAPIView):
     def post(self, request, id):
         if id not in [1, 2, 3, 4, 5]:
             return Response(data={"message": "invalid option"}, status=status.HTTP_400_BAD_REQUEST)
-
         option_types = {1: "BIRTHDAY", 2: "CAR-PURCHASE",
                         3: "VACATION", 4: "GADGET-PURCHASE", 5: "MISCELLANEOUS"}
         user_option = option_types.get(id)
         user = request.user
-
         savings_filter = UserSavings.objects.filter(
             user=user, type=user_option).first()
         if not savings_filter:
@@ -210,8 +209,10 @@ class NewSavingsView(generics.GenericAPIView):
             if not savings_filter:
                 if not serializer.validated_data.get("frequency"):
                     return Response(data={"message": "frequency is compulsory"},  status=status.HTTP_400_BAD_REQUEST)
-                serializer.save(user=user, type=user_option,
+                new_savings = serializer.save(user=user, type=user_option,
                                 start_date=date.today())
+                new_savings.calculate_payment_details()
+                new_savings.save()
             else:
                 if not savings_filter.start_date:
                     serializer.save(start_date=date.today())
@@ -241,7 +242,7 @@ class UserSavingsView(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
         queryset = UserSavings.objects.filter(
-            user=user).order_by("-created_at")
+            user=user, withdrawal_date__isnull=False).order_by("-created_at")
         return queryset
 
 
@@ -307,8 +308,7 @@ class FundSavings(generics.GenericAPIView):
             user.wallet_balance -= amount
             user.save()
             savings.saved += amount
-            if savings.saved >= savings.amount:
-                savings.goal_met = True
+            savings.mark_payment_as_made(timezone.now().date(), int(amount))
             savings.save()
             new_savings_activity = SavingsActivities.objects.create(savings=savings, amount=amount,
                                                                     balance = savings.saved,
@@ -316,7 +316,7 @@ class FundSavings(generics.GenericAPIView):
             new_savings_activity.save()
             return Response(data={"message": "success"}, status=status.HTTP_202_ACCEPTED)
 
-class CancelSavings(views.APIView):
+class CancelSavings(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = SetPinSerializer
     def post(self, request, id):
@@ -340,20 +340,21 @@ class CancelSavings(views.APIView):
         if not savings.withdrawal_date:
             return Response(data={"message": "You don't have a savings of this type"}, status=status.HTTP_400_BAD_REQUEST)
         # if savings.withdrawal_date > date.today():
-        penalty = savings.save * 0.02
-        refund = savings.save - penalty
+        penalty = savings.saved * 0.02
+        refund = savings.saved - penalty
         with transaction.atomic():
-            user.wallet_balance += refund
-            savings.withdrawal_date = None
-            savings.withdrawal_date = None
-            savings.start_date = None
+            user.wallet_balance += Decimal(refund)
             savings.amount = 0
             savings.saved = 0
+            savings.withdrawal_date = None
+            savings.start_date = None
             savings.cancel_date = date.today()
             savings.goal_met = False
+            savings.payment_details = None
             Activities.objects.create(title="Savings Payment", amount=refund, user=user, activity_type="CREDIT")
             savings.save()
             user.save()
+        return Response(data={"message": "success"}, status=status.HTTP_200_OK)
         
         
 
@@ -420,9 +421,9 @@ class LoanRequestView(generics.GenericAPIView):
 
             return Response(data={"message": "Not up to 6 months as a coporative member"}, status=status.HTTP_403_FORBIDDEN)
         serializer = self.serializer_class(data=request.data)
-        # active_loan = Loan.objects.filter(user=user, is_active=True).first()
-        # if active_loan:
-        #     return Response(data={"message": "You have an outstanding loan"}, status=status.HTTP_403_FORBIDDEN)
+        active_loan = Loan.objects.filter(user=user, is_active=True).first()
+        if active_loan:
+            return Response(data={"message": "You have an outstanding loan"}, status=status.HTTP_403_FORBIDDEN)
         serializer.is_valid(raise_exception=True)
         amount = serializer.validated_data["amount"]
         if amount > (membership.balance * 2):

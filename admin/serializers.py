@@ -354,6 +354,8 @@ class SingleSavingsSerializer(serializers.ModelSerializer):
         return obj.withdrawal_date
 
     def get_amount_per_savings(self, obj):
+        return obj.amount
+        '''
         start_date = obj.start_date
         end_date = obj.withdrawal_date
         amount = obj.amount
@@ -375,6 +377,7 @@ class SingleSavingsSerializer(serializers.ModelSerializer):
             return amount
 
         return amount / number_of_periods
+        '''
 
 
 class AdminLoanList(serializers.ModelSerializer):

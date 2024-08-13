@@ -141,7 +141,7 @@ class UserSavingsSerializers(serializers.ModelSerializer):
     class Meta:
         model = UserSavings
         fields = ["type", "amount", "start_date",
-                  "withdrawal_date", "frequency", "saved", "goal_met", "activities"]
+                  "withdrawal_date", "frequency", "saved", "goal_met", "activities", "payment_details"]
     def get_activities(self, obj):
         all_savings_activities = SavingsActivities.objects.filter(savings=obj).order_by("-created_at")
         activities_list = [
