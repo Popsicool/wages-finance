@@ -322,7 +322,7 @@ class UserInvestmentHistory(serializers.ModelSerializer):
 
     class Meta:
         model = UserInvestments
-        fields = ["shares", "amount", "title", "start_date","status",
+        fields = ["id","shares", "amount", "title", "start_date","status",
                   "end_date", "return_on_investment", "expected_payout", "image"]
     def get_return_on_investment(self, obj):
         rate = obj.investment.interest_rate

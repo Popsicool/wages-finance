@@ -358,6 +358,31 @@ class CancelSavings(generics.GenericAPIView):
         return Response(data={"message": "success"}, status=status.HTTP_200_OK)
         
         
+class CancelInvestment(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = SetPinSerializer
+    def post(self, request, id):
+        user = request.user
+        investment_plan = get_object_or_404(UserInvestments, pk=id)
+        if investment_plan.user != user:
+            return Response({"message": "Unauthorized access"}, status=status.HTTP_401_UNAUTHORIZED)
+        if investment_plan.status != "ACTIVE":
+            return Response({"message": "Investment not active"}, status=status.HTTP_401_UNAUTHORIZED)
+        serializer = self.serializer_class(data = request.data)
+        serializer.is_valid(raise_exception=True)
+        pin = serializer.validated_data["pin"]
+        if user.pin != pin:
+            return Response(data={"message": "invalid pin"}, status=status.HTTP_403_FORBIDDEN)
+        refund = investment_plan.amount - (investment_plan.amount * 0.02)
+        with transaction.atomic():
+            user.wallet_balance += Decimal(refund)
+            Activities.objects.create(title="Investment withdrawal", amount=refund, user=user, activity_type="CREDIT")
+            investment_plan.status = "WITHDRAWN"
+            investment_plan.save()
+            user.save()
+        return Response(data={"message": "success"}, status=status.HTTP_200_OK)
+        
+         
 
 
 class WithdrawalView(generics.GenericAPIView):
