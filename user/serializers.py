@@ -106,6 +106,7 @@ class NewSavingsSerializer(serializers.ModelSerializer):
     withdrawal_date = serializers.DateField()
     frequency = serializers.ChoiceField(choices=[("daily", "DAILY"), ("weekly", "WEEKLY"), ("monthly", "MONTHLY")], required=False)
     time = serializers.TimeField(required=False)
+    type = serializers.CharField(read_only = True)
 
     class Meta:
         model = UserSavings
@@ -140,7 +141,7 @@ class UserSavingsSerializers(serializers.ModelSerializer):
     activities = serializers.SerializerMethodField()
     class Meta:
         model = UserSavings
-        fields = ["type", "amount", "start_date",
+        fields = ["type", "amount", "start_date","target_amount",
                   "withdrawal_date", "frequency", "saved", "goal_met", "activities", "payment_details"]
     def get_activities(self, obj):
         all_savings_activities = SavingsActivities.objects.filter(savings=obj).order_by("-created_at")
@@ -313,7 +314,7 @@ class UserInvestment(serializers.Serializer):
 
 class UserInvestmentHistory(serializers.ModelSerializer):
     title = serializers.CharField(source="investment.title")
-    image = serializers.CharField(source="investment.image")
+    image = serializers.CharField(source="investment.image.url")
     start_date = serializers.CharField(source="investment.start_date")
     end_date = serializers.CharField(source="investment.end_date")
     return_on_investment = serializers.SerializerMethodField()

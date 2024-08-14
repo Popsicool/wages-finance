@@ -215,9 +215,9 @@ class NewSavingsView(generics.GenericAPIView):
                 new_savings.save()
             else:
                 if not savings_filter.start_date:
-                    serializer.save(start_date=date.today())
+                    serializer.save(start_date=date.today(), cycle = savings_filter.cycle + 1)
                 else:
-                    serializer.save()
+                    serializer.save(cycle = savings_filter.cycle + 1)
 
             return Response(data=serializer.data, status=status.HTTP_201_CREATED)
 
@@ -348,6 +348,7 @@ class CancelSavings(generics.GenericAPIView):
             savings.saved = 0
             savings.withdrawal_date = None
             savings.start_date = None
+            savings.target_amount = None
             savings.cancel_date = date.today()
             savings.goal_met = False
             savings.payment_details = None

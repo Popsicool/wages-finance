@@ -262,6 +262,7 @@ class UserSavings(models.Model):
     type = models.CharField(
         max_length=35, choices=SAVINGS_TYPES, default=SAVINGS_TYPES[0][0])
     amount = models.BigIntegerField()
+    target_amount = models.BigIntegerField(blank=True, null=True)
     saved = models.BigIntegerField(default=0)
     start_date = models.DateField(blank=True, null=True)
     withdrawal_date = models.DateField(blank=True, null=True)
@@ -297,6 +298,7 @@ class UserSavings(models.Model):
                 break
 
         self.payment_details = payment_details
+        self.target_amount = int(len(payment_details) * self.amount)
         self.save()
     def mark_payment_as_made(self, date, amount):
         date_str = date.strftime('%d/%m/%Y')

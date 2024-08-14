@@ -327,11 +327,12 @@ class SavingsTypeSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email')
     end_date = serializers.DateField(source="withdrawal_date")
     plan = serializers.CharField(source="type")
+    amount_per_savings = serializers.IntegerField(source="amount")
 
     class Meta:
         model = UserSavings
         fields = ["id", "plan", "name", "phone", "email", "saved",
-                  "amount", "frequency", "start_date", "end_date"]
+                  "amount_per_savings", "frequency", "start_date", "end_date", "target_amount"]
 
     def get_name(self, obj):
         return f"{obj.user.firstname} {obj.user.lastname}"
@@ -344,8 +345,8 @@ class SingleSavingsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserSavings
-        fields = ["title", "user", "amount", "saved", "frequency",
-                  "start_date", "end_date", "amount_per_savings"]
+        fields = ["title", "user", "saved", "frequency",
+                  "start_date", "end_date", "amount_per_savings", "target_amount"]
 
     def get_title(self, obj):
         return obj.type
@@ -470,7 +471,7 @@ class AdminUserInvestmentSerializerHistory(serializers.ModelSerializer):
 class AdminUserSavingsDataSerializers(serializers.ModelSerializer):
     class Meta:
         model = UserSavings
-        fields = ["type", "cycle", 'amount']
+        fields = ["type", "cycle", 'amount', "target_amount"]
 
 
 class AdminUserSavingsBreakdown(serializers.ModelSerializer):
