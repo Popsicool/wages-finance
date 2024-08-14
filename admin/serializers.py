@@ -236,6 +236,7 @@ class GetSingleUserSerializer(serializers.ModelSerializer):
     outstanding_loan = serializers.SerializerMethodField()
     referal_count = serializers.SerializerMethodField()
     transactions = serializers.SerializerMethodField()
+    referees = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -244,7 +245,7 @@ class GetSingleUserSerializer(serializers.ModelSerializer):
             "wallet_balance", "tier", "created_at", "referal_count",
             "membership_id", "membership_status", "total_savings", "outstanding_loan",
             "total_investment", "wages_point", "referal_balance", "total_referal_balance",
-            "transactions"
+            "transactions", "referees"
         ]
 
     def get_membership_status(self, obj):
@@ -280,6 +281,21 @@ class GetSingleUserSerializer(serializers.ModelSerializer):
         activities = Activities.objects.filter(
             user=obj).order_by('-created_at')[:5]
         return ActivitySerializer(activities, many=True).data
+    def get_referees(self, obj):
+        referees = obj.user_set.filter(is_subscribed=True)
+        referees_list = []
+
+        for referal in referees:
+            referal_data = {
+                'id': referal.id,
+                'firstname': referal.firstname,
+                'lastname': referal.lastname,
+                'profile_picture': referal.profile_picture.url if referal.profile_picture else None,
+                'created_at': referal.created_at,
+            }
+            referees_list.append(referal_data)
+
+        return referees_list
 
 
 class GetWithdrawalSerializers(serializers.ModelSerializer):
@@ -477,6 +493,10 @@ class AdminUserSavingsDataSerializers(serializers.ModelSerializer):
 class AdminUserSavingsBreakdown(serializers.ModelSerializer):
     class Meta:
         model = SavingsActivities
+        fields = ["created_at", "amount", "balance"]
+class AdminUserCoporativeBreakdownSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CoporativeActivities
         fields = ["created_at", "amount", "balance"]
 
 

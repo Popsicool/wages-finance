@@ -42,6 +42,7 @@ from .serializers import (
     AdminUserInvestmentSerializerHistory,
     AdminUserSavingsDataSerializers,
     AdminUserSavingsBreakdown,
+    AdminUserCoporativeBreakdownSerializer,
     AdminReferralList
 )
 from transaction.models import Transaction
@@ -1039,7 +1040,6 @@ class AdminUserSavingsBreakdown(generics.GenericAPIView):
         if end_date and not is_valid_date_format(end_date):
             return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
         queryset = self.get_queryset()
-        print(queryset)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.serializer_class(page, many=True)
@@ -1060,6 +1060,48 @@ class AdminUserSavingsBreakdown(generics.GenericAPIView):
         end_date += timedelta(days=1)
         queryset = SavingsActivities.objects.filter(user = user, created_at__range=[start_date, end_date]).order_by('-created_at')
         return queryset
+
+
+class AdminUserCoporativeBreakdown(generics.GenericAPIView):
+    serializer_class = AdminUserCoporativeBreakdownSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('start_date', openapi.IN_QUERY,
+                              description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)',
+                              type=openapi.TYPE_STRING, required=False),
+        ]
+    )
+    def get(self, request, id):
+        start_date = self.request.query_params.get('start_date', None)
+        end_date = self.request.query_params.get('end_date', None)
+        if start_date and not is_valid_date_format(start_date):
+            return Response(data={'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        if end_date and not is_valid_date_format(end_date):
+            return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+    def get_queryset(self):
+        id = self.kwargs['id']
+        user = get_object_or_404(User, pk=id)
+        start_date = self.request.query_params.get('start_date', None)
+        end_date = self.request.query_params.get('end_date', None)
+        today = now().date()
+        start_date = start_date or today
+        if end_date:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+        end_date = end_date or today
+        end_date += timedelta(days=1)
+        queryset = CoporativeActivities.objects.filter(user_coop__user = user, created_at__range=[start_date, end_date]).order_by('-created_at')
+        return queryset
+
 
 class AdminListReferal(generics.GenericAPIView):
     # pagination_class = []
