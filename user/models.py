@@ -263,6 +263,7 @@ class UserSavings(models.Model):
         max_length=35, choices=SAVINGS_TYPES, default=SAVINGS_TYPES[0][0])
     amount = models.BigIntegerField()
     target_amount = models.BigIntegerField(blank=True, null=True)
+    all_time_saved = models.BigIntegerField(default=0)
     saved = models.BigIntegerField(default=0)
     start_date = models.DateField(blank=True, null=True)
     withdrawal_date = models.DateField(blank=True, null=True)
@@ -338,6 +339,7 @@ class SavingsActivities(models.Model):
 
     def __str__(self):
         return f"{self.amount} - {self.savings.type} by {self.user.firstname} on {self.created_at}"
+
 
 class CoporativeMembership(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -463,6 +465,27 @@ class Loan(models.Model):
             total_interest += interest_payment
         return round(total_interest)
 
+# LOAN_ACTIVITIES_CHOICE = [
+#     ("REPAYMENT", "REPAYMENT"),
+
+# ]
+# class LoanActivities(models.Model):
+#     loan = models.ForeignKey(
+#         Loan, on_delete=models.CASCADE, related_name="loan_activities"
+#     )
+#     amount = models.IntegerField()
+#     balance = models.BigIntegerField(default=0)
+#     user = models.ForeignKey(
+#         User, on_delete=models.CASCADE, related_name='user_loan_activity')
+#     activity_type = models.CharField(
+#         max_length=255,
+#         choices=LOAN_ACTIVITIES_CHOICE,
+#         default=LOAN_ACTIVITIES_CHOICE[0][0]
+#     )
+#     created_at = models.DateTimeField(auto_now_add=True)
+
+#     def __str__(self):
+#         return f"{self.amount} - {self.activity_type} by {self.user.firstname} on {self.created_at}"
 
 BANK_LISTS = [
     {

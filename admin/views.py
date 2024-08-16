@@ -9,7 +9,8 @@ from user.models import (User,
                          UserInvestments,
                          Loan,
                          CoporativeActivities,
-                         SavingsActivities
+                         SavingsActivities,
+                         Activities
                          )
 from django.contrib.auth.models import Group
 from django.utils.dateparse import parse_date
@@ -293,6 +294,24 @@ class AdminOverview(views.APIView):
         filter_user_count = all_users.filter(
             created_at__range=[start_date, end_date]).count()
         active_user = all_users.filter(is_active=True).count()
+        all_coop = CoporativeMembership.objects.filter(is_active=True)
+        coop_count = all_coop.count()
+        total_coop = all_coop.aggregate(Sum('balance'))['balance__sum'] or 0
+
+        all_loans = Loan.objects.all()
+        disbured = all_loans.filter(status__in = ["APPROVED","REPAYED","OVER-DUE"])
+        total_repaid = disbured.filter(status="REPAYED").count()
+        # amount
+        loan_filter = disbured.filter(date_approved__range=[start_date, end_date])
+        all_loan_amount = disbured.aggregate(Sum('amount'))['amount__sum'] or 0
+        loan_filter_amount = loan_filter.aggregate(Sum('amount'))['amount__sum'] or 0
+        percentage_repayed = (total_repaid / disbured.count()) * 100
+
+        repayment_activities = Activities.objects.filter(title="Loan Repayment")
+        loan_total_repayment = repayment_activities.aggregate(Sum('amount'))['amount__sum'] or 0
+        loan_filter_activities = repayment_activities.filter(created_at__range=[start_date, end_date])
+        loan_filtered_repayment = loan_filter_activities.aggregate(Sum('amount'))['amount__sum'] or 0
+
 
         return Response({
             'total_revenue': total_sum,
@@ -303,6 +322,13 @@ class AdminOverview(views.APIView):
             'filter_user_count': filter_user_count,
             'active_user': active_user,
             'inactive_user': all_users_count - active_user,
+            'total_coop_members': coop_count,
+            'total_coop_saved': total_coop,
+            'total_loan_amount': all_loan_amount,
+            'filtered_loan_amount':loan_filter_amount,
+            "percentage_loan_repaid": percentage_repayed,
+            "total_loan_repayment":loan_total_repayment,
+            "filtered_loan_repayment":loan_filtered_repayment
         })
 
 
@@ -1013,6 +1039,26 @@ class AdminUserSavingsData(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     def get(self, request, id):
         queryset = self.get_queryset()
+        total_cycle = 0
+        total_savings = 0
+        current_Savings = 0
+        for sav in queryset:
+            total_cycle += sav.cycle
+            total_savings += sav.all_time_saved
+            current_Savings += sav.saved
+        additional_data = {
+            'total_cycle': total_cycle,
+            'total_savings': total_savings,
+            'current_Savings': current_Savings,
+        }
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            response_data = {
+                'overview': additional_data,
+                'investments': serializer.data
+            }
+            return self.get_paginated_response(response_data)
         serializer = self.serializer_class(queryset, many=True)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
     def get_queryset(self):

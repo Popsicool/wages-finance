@@ -234,6 +234,7 @@ class GetSingleUserSerializer(serializers.ModelSerializer):
     total_savings = serializers.SerializerMethodField()
     total_investment = serializers.SerializerMethodField()
     outstanding_loan = serializers.SerializerMethodField()
+    total_coop_savings = serializers.SerializerMethodField()
     referal_count = serializers.SerializerMethodField()
     transactions = serializers.SerializerMethodField()
     referees = serializers.SerializerMethodField()
@@ -244,7 +245,7 @@ class GetSingleUserSerializer(serializers.ModelSerializer):
             "firstname", "lastname", "phone", "email", "profile_picture",
             "wallet_balance", "tier", "created_at", "referal_count",
             "membership_id", "membership_status", "total_savings", "outstanding_loan",
-            "total_investment", "wages_point", "referal_balance", "total_referal_balance",
+            "total_investment","total_coop_savings", "wages_point", "referal_balance", "total_referal_balance",
             "transactions", "referees"
         ]
 
@@ -276,6 +277,11 @@ class GetSingleUserSerializer(serializers.ModelSerializer):
 
     def get_referal_count(self, obj):
         return User.objects.filter(referal=obj).count()
+    def get_total_coop_savings(self, obj):
+        cop = CoporativeMembership.objects.filter(user=obj).first()
+        if not cop:
+            return 0
+        return cop.balance
 
     def get_transactions(self, obj):
         activities = Activities.objects.filter(
@@ -485,9 +491,15 @@ class AdminUserInvestmentSerializerHistory(serializers.ModelSerializer):
 
 
 class AdminUserSavingsDataSerializers(serializers.ModelSerializer):
+    amount_per_Savings = serializers.SerializerMethodField()
+    amount_saved = serializers.SerializerMethodField()
     class Meta:
         model = UserSavings
-        fields = ["type", "cycle", 'amount', "target_amount"]
+        fields = ["type", "cycle", 'amount_per_Savings', "target_amount", "amount_saved"]
+    def get_amount_per_Savings(self, obj):
+        return obj.amount
+    def get_amount_saved(self, obj):
+        return obj.saved
 
 
 class AdminUserSavingsBreakdown(serializers.ModelSerializer):

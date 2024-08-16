@@ -308,6 +308,7 @@ class FundSavings(generics.GenericAPIView):
             user.wallet_balance -= amount
             user.save()
             savings.saved += amount
+            savings.all_time_saved += amount
             savings.mark_payment_as_made(timezone.now().date(), int(amount))
             savings.save()
             new_savings_activity = SavingsActivities.objects.create(savings=savings, amount=amount,
@@ -378,6 +379,7 @@ class CancelInvestment(generics.GenericAPIView):
             user.wallet_balance += Decimal(refund)
             Activities.objects.create(title="Investment withdrawal", amount=refund, user=user, activity_type="CREDIT")
             investment_plan.status = "WITHDRAWN"
+            investment_plan.amount = refund
             investment_plan.save()
             user.save()
         return Response(data={"message": "success"}, status=status.HTTP_200_OK)
