@@ -20,6 +20,7 @@ from django.db.models import Sum, Count, Case, When, Value, BooleanField, Q
 from drf_yasg import openapi
 from utils.pagination import CustomPagination
 from datetime import timedelta
+from django.utils.timezone import make_aware
 from .serializers import (
     AdminLoginSerializer,
     AdminInviteSerializer,
@@ -256,16 +257,16 @@ class AdminOverview(views.APIView):
     def get(self, request):
         start_date = self.request.query_params.get('start_date', None)
         end_date = self.request.query_params.get('end_date', None)
-        today = now().date()
+        today = now()
 
         if start_date and not is_valid_date_format(start_date):
             return Response(data={'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
         if end_date and not is_valid_date_format(end_date):
             return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        start_date = start_date or today
+        start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
         if end_date:
-            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+            end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
         end_date = end_date or today
         end_date += timedelta(days=1)
 
@@ -656,17 +657,18 @@ class AdminInvestmentDashboards(views.APIView):
     @swagger_auto_schema(
         manual_parameters=[
             openapi.Parameter(
-                'filter',
+                'status',
                 openapi.IN_QUERY,
                 description='Filter by duration',
                 type=openapi.TYPE_STRING,
-                enum=['TODAY'],
+                enum=['Active', 'Sold'],
                 required=False
             )
         ]
     )
     def get(self, request):
         filter_param = request.query_params.get('filter', None)
+        filter_status = request.query_params.get('status', None)
         today = date.today()
 
         all_investments = UserInvestments.objects.all()
@@ -684,7 +686,13 @@ class AdminInvestmentDashboards(views.APIView):
             total_amount=Sum('amount'))['total_amount'] or 0
         count_by_filter = filter_investments.count()
 
-        investment_plans = InvestmentPlan.objects.all()
+        investment_plans = InvestmentPlan.objects.all().order_by("-start_date")
+        if filter_status:
+            filter_status = filter_status.strip().upper()
+            if filter_status == "ACTIVE":
+                investment_plans = investment_plans.filter(is_active=True)
+            elif filter_status == "SOLD":
+                investment_plans = investment_plans.filter(is_active=False)
         plans = []
         for plan in investment_plans:
             plan_data = {
@@ -727,16 +735,16 @@ class AdminLoanDashboard(views.APIView):
 
         start_date = self.request.query_params.get('start_date', None)
         end_date = self.request.query_params.get('end_date', None)
-        today = now().date()
+        today = now()
 
         if start_date and not is_valid_date_format(start_date):
             return Response(data={'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
         if end_date and not is_valid_date_format(end_date):
             return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        start_date = start_date or today
+        start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
         if end_date:
-            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+            end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
         end_date = end_date or today
         end_date += timedelta(days=1)
 
@@ -925,10 +933,10 @@ class AdminUserCoporativeBreakdown(generics.GenericAPIView):
         user = get_object_or_404(User, pk=id)
         start_date = self.request.query_params.get('start_date', None)
         end_date = self.request.query_params.get('end_date', None)
-        today = now().date()
-        start_date = start_date or today
+        today = now()
+        start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
         if end_date:
-            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+            end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
         end_date = end_date or today
         end_date += timedelta(days=1)
         return CoporativeActivities.objects.filter(user_coop__user=user, created_at__range=[start_date, end_date]).select_related('user_coop').order_by('-created_at')
@@ -1025,10 +1033,10 @@ class AdminUserInvestmentHistory(generics.GenericAPIView):
         start_date = self.request.query_params.get('start_date', None)
         end_date = self.request.query_params.get('end_date', None)
         inv_status = self.request.query_params.get('status', None)
-        today = now().date()
-        start_date = start_date or today
+        today = now()
+        start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
         if end_date:
-            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+            end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
         end_date = end_date or today
         end_date += timedelta(days=1)
         queryset = UserInvestments.objects.filter(user = user, created_at__range=[start_date, end_date]).order_by('-due_date')
@@ -1098,10 +1106,10 @@ class AdminUserSavingsBreakdown(generics.GenericAPIView):
         user = get_object_or_404(User, pk=id)
         start_date = self.request.query_params.get('start_date', None)
         end_date = self.request.query_params.get('end_date', None)
-        today = now().date()
-        start_date = start_date or today
+        today = now()
+        start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
         if end_date:
-            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+            end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
         end_date = end_date or today
         end_date += timedelta(days=1)
         queryset = SavingsActivities.objects.filter(user = user, created_at__range=[start_date, end_date]).order_by('-created_at')
@@ -1139,10 +1147,10 @@ class AdminUserCoporativeBreakdown(generics.GenericAPIView):
         user = get_object_or_404(User, pk=id)
         start_date = self.request.query_params.get('start_date', None)
         end_date = self.request.query_params.get('end_date', None)
-        today = now().date()
-        start_date = start_date or today
+        today = now()
+        start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
         if end_date:
-            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+            end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
         end_date = end_date or today
         end_date += timedelta(days=1)
         queryset = CoporativeActivities.objects.filter(user_coop__user = user, created_at__range=[start_date, end_date]).order_by('-created_at')
@@ -1168,10 +1176,10 @@ class AdminListReferal(generics.GenericAPIView):
             return Response(data={'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
         if end_date and not is_valid_date_format(end_date):
             return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
-        today = now().date()
-        start_date = start_date or today
+        today = now()
+        start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
         if end_date:
-            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+            end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
         end_date = end_date or today
         end_date += timedelta(days=1)
         queryset = self.get_queryset()
