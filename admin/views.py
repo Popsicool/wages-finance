@@ -275,6 +275,12 @@ class AdminOverview(views.APIView):
         end_date += timedelta(days=1)
 
         transactions = Transaction.objects.all()
+        all_withdrawals = Withdrawal.objects.filter(status="SUCCESS")
+        filtered_withdrawal = all_withdrawals.filter(created_at__range=[start_date, end_date])
+        total_withdrawal_amount = all_withdrawals.aggregate(Sum('amount'))['amount__sum'] or 0
+        filtered_withdrawal_amount = filtered_withdrawal.aggregate(Sum('amount'))['amount__sum'] or 0
+
+
 
         # Sum of all transaction amounts
         total_sum = transactions.aggregate(Sum('revenue'))['revenue__sum'] or 0
@@ -333,7 +339,9 @@ class AdminOverview(views.APIView):
             'filtered_loan_amount':loan_filter_amount,
             "percentage_loan_repaid": percentage_repayed,
             "total_loan_repayment":loan_total_repayment,
-            "filtered_loan_repayment":loan_filtered_repayment
+            "filtered_loan_repayment":loan_filtered_repayment,
+            'total_withdrawal_amount':total_withdrawal_amount,
+            'filtered_withdrawal_amount':filtered_withdrawal_amount
         })
 
 
