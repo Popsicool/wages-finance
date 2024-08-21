@@ -10,7 +10,9 @@ from user.models import (User,
                          Loan,
                          CoporativeActivities,
                          SavingsActivities,
-                         Activities
+                         Activities,
+                         InvestmentCancel,
+                         SavingsCancel
                          )
 from django.contrib.auth.models import Group
 from django.utils.dateparse import parse_date
@@ -45,7 +47,9 @@ from .serializers import (
     AdminUserSavingsDataSerializers,
     AdminUserSavingsBreakdown,
     AdminUserCoporativeBreakdownSerializer,
-    AdminReferralList
+    AdminReferralList,
+    AdminSingleInvestment,
+    SingleInvestmentInvestors
 )
 from transaction.models import Transaction
 import random
@@ -380,7 +384,6 @@ class GetSingleUserView(generics.GenericAPIView):
         serializer = self.serializer_class(instance=user)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-
 class GetUsersView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     serializer_class = GetUsersSerializers
@@ -598,6 +601,13 @@ class AdminSavingsStatsView(views.APIView):
             unique_users_per_title=Count('user', distinct=True),
             total_saved_per_title=Sum('saved')
         )
+        all_canceled_savings = SavingsCancel.objects.all()
+        # cancelled_investment_filter = all_cancelled_investments.filter(created_at__range=[start_date, end_date])
+        cancelled_savings_amount = all_canceled_savings.aggregate(
+            total_amount=Sum('amount'))['total_amount'] or 0
+        cancelled_penalty = all_canceled_savings.aggregate(
+            total_amount=Sum('penalty'))['total_amount'] or 0
+        
 
         # Separate query to get counts and sums grouped by title
         title_aggregates = UserSavings.objects.values('type').annotate(
@@ -614,11 +624,17 @@ class AdminSavingsStatsView(views.APIView):
                 'unique_users': item['unique_users_per_title'],
                 'total_saved': item['total_saved_per_title']
             }
-
+        #TODO interest paid
+        intered_paid = 0
+        interest_paid_today = 0
         data = {
             'unique_users_active_savings': savings_data['unique_users_active_savings'],
             'total_saved_active': savings_data['total_saved_active'],
             'total_saved_all': savings_data['total_saved_all'],
+            'cancelled_savings_amount':cancelled_savings_amount,
+            'cancelled_penalty':cancelled_penalty,
+            'intered_paid':intered_paid,
+            'interest_paid_today':interest_paid_today,
             'title_data': title_data
         }
 
@@ -651,6 +667,46 @@ class AdminSingleSavings(views.APIView):
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 
+class AdminSingleInvestmentInvestors(generics.ListAPIView):
+    serializer_class = SingleInvestmentInvestors
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    pagination_class = CustomPagination
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["user__id", "user__firstname", "user__lastname", "user__email"]
+    def get(self, request, id):
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        id = self.kwargs["id"]
+        investment = get_object_or_404(InvestmentPlan, pk = id)
+        all_investors = UserInvestments.objects.filter(investment=investment).order_by("-created_at")
+        return all_investors
+
+
+class AdminSingleInvestment(generics.GenericAPIView):
+    serializer_class = AdminSingleInvestment
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+
+    def get(self, request, id):
+        queryset = self.get_queryset()
+        serializer = self.serializer_class(queryset)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+    def patch(self, request, id):
+        queryset = self.get_queryset()
+        serializer = self.serializer_class(instance=queryset, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+    def get_queryset(self):
+        id = self.kwargs["id"]
+        queryset = get_object_or_404(InvestmentPlan, pk=id)
+        return queryset
+
 class AdminInvestmentDashboards(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
 
@@ -663,28 +719,84 @@ class AdminInvestmentDashboards(views.APIView):
                 type=openapi.TYPE_STRING,
                 enum=['Active', 'Sold'],
                 required=False
-            )
+            ),
+            openapi.Parameter('start_date', openapi.IN_QUERY,
+                              description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)',
+                              type=openapi.TYPE_STRING, required=False),
         ]
     )
     def get(self, request):
-        filter_param = request.query_params.get('filter', None)
+        start_date = self.request.query_params.get('start_date', None)
+        end_date = self.request.query_params.get('end_date', None)
+        today = now()
+
+        if start_date and not is_valid_date_format(start_date):
+            return Response(data={'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        if end_date and not is_valid_date_format(end_date):
+            return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
+        if end_date:
+            end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
+        end_date = end_date or today
+        end_date += timedelta(days=1)
         filter_status = request.query_params.get('status', None)
-        today = date.today()
 
         all_investments = UserInvestments.objects.all()
 
         total_investments = all_investments.aggregate(
             total_amount=Sum('amount'))['total_amount'] or 0
         count_of_investors = all_investments.count()
+        filter_investments = all_investments.filter(created_at__range=[start_date, end_date])
 
-        if filter_param and filter_param.strip().upper() == 'TODAY':
-            filter_investments = all_investments.filter(created_at=today)
-        else:
-            filter_investments = all_investments
+        total_interest = all_investments.annotate(
+            interest=ExpressionWrapper(
+                F('amount') * F('investment__interest_rate') / 100,
+                output_field=DecimalField()
+            )
+        ).aggregate(
+            total_interest=Sum('interest')
+        )['total_interest'] or 0
 
         total_by_filter = filter_investments.aggregate(
             total_amount=Sum('amount'))['total_amount'] or 0
         count_by_filter = filter_investments.count()
+        to_now = timezone.now()
+        upcoming_payout_this_month = all_investments.filter(
+            status="ACTIVE",
+            due_date__year=to_now.year,
+            due_date__month=to_now.month
+        ).annotate(
+            payout=ExpressionWrapper(
+                F('amount') + (F('amount') * F('investment__interest_rate') / 100),
+                output_field=DecimalField()
+            )
+        ).aggregate(
+            total_amount=Sum('payout')
+        )['total_amount'] or 0
+        upcoming_payout_today = all_investments.filter(
+            status="ACTIVE",
+            due_date=today
+        ).annotate(
+            payout=ExpressionWrapper(
+                F('amount') + (F('amount') * F('investment__interest_rate') / 100),
+                output_field=DecimalField()
+            )
+        ).aggregate(
+            total_amount=Sum('payout')
+        )['total_amount'] or 0
+        active_investments = all_investments.filter(
+            status="ACTIVE"
+        ).count()
+        all_cancelled_investments = InvestmentCancel.objects.all()
+        cancelled_investment_filter = all_cancelled_investments.filter(created_at__range=[start_date, end_date])
+        cancelled_investment_count = all_cancelled_investments.count()
+        cancelled_investment_filter_count = cancelled_investment_filter.count()
+        cancelled_investment_penalties = all_cancelled_investments.aggregate(
+            total_amount=Sum('penalty'))['total_amount'] or 0
+        cancelled_investment_filter_penalty = cancelled_investment_filter.aggregate(
+            total_amount=Sum('penalty'))['total_amount'] or 0
 
         investment_plans = InvestmentPlan.objects.all().order_by("-start_date")
         if filter_status:
@@ -714,6 +826,14 @@ class AdminInvestmentDashboards(views.APIView):
             'count_of_investors': count_of_investors,
             'total_by_filter': total_by_filter,
             'count_by_filter': count_by_filter,
+            'upcoming_payout_this_month':upcoming_payout_this_month,
+            'upcoming_payout_today':upcoming_payout_today,
+            'total_interest':total_interest,
+            'active_investments':active_investments,
+            'cancelled_investment_count':cancelled_investment_count,
+            'cancelled_investment_filter_count':cancelled_investment_filter_count,
+            'cancelled_investment_penalties': cancelled_investment_penalties,
+            'cancelled_investment_filter_penalty':cancelled_investment_filter_penalty,
             'plans': plans
         }
 

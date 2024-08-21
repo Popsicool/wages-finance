@@ -206,7 +206,46 @@ class AdminCreateInvestmentSerializer(serializers.ModelSerializer):
         fields = ["title", "image", "start_date", "end_date",
                   "quota", "interest_rate", "unit_share", "is_active"]
 
+class AdminSingleInvestment(serializers.ModelSerializer):
+    investor_count = serializers.SerializerMethodField(read_only=True)
+    amount_invested = serializers.SerializerMethodField(read_only=True)
+    days_left = serializers.SerializerMethodField(read_only=True)
+    title = serializers.CharField(max_length=255, required=False)
+    image = serializers.ImageField(required=False)
+    start_date = serializers.DateField(required=False)
+    end_date = serializers.DateField(required=False)
+    quota = serializers.IntegerField(required=False)
+    interest_rate = serializers.IntegerField(required=False)
+    unit_share = serializers.IntegerField(required=False)
+    class Meta:
+        model = InvestmentPlan
+        fields = ["investor_count", "amount_invested", "days_left",
+                  "title", "image", "start_date", "end_date",
+                  "quota", "interest_rate", "unit_share",]
+    def get_amount_invested(self, obj):
+        all_investments = UserInvestments.objects.filter(investment=obj)
+        amt = all_investments.aggregate(
+            total_amount=Sum('amount'))['total_amount'] or 0
+        return amt
+    def get_investor_count(self, obj):
+        return UserInvestments.objects.filter(investment=obj).count()
+    def get_days_left(self, obj):
+        today = timezone.now()
+        days = (obj.end_date - today.date()).days
+        return days
 
+class SingleInvestmentInvestors(serializers.ModelSerializer):
+    id = serializers.IntegerField(source='user.id')
+    name = serializers.SerializerMethodField()
+    roi = serializers.SerializerMethodField()
+    class Meta:
+        model = UserInvestments
+        fields = ["id","name", "amount", "due_date", "roi", "status"]
+    def get_name(self, obj):
+        return f"{obj.user.firstname} {obj.user.lastname}"
+    def get_roi(self, obj):
+        roi = obj.amount * (obj.investment.interest_rate / 100)
+        return roi
 class GetUsersSerializers(serializers.ModelSerializer):
     membership_status = serializers.SerializerMethodField()
 
@@ -250,7 +289,11 @@ class GetSingleUserSerializer(serializers.ModelSerializer):
         ]
 
     def get_membership_status(self, obj):
-        return "ACTIVE" if obj.is_subscribed else "INACTIVE"
+        if not obj.is_subscribed:
+            return "INACTIVE"
+        if not CoporativeMembership.objects.filter(user=obj, is_active=True).first():
+            return "INACTIVE"
+        return "ACTIVE"
 
     def get_membership_id(self, obj):
         return getattr(obj.coporativemembership, 'membership_id', None) if obj.is_subscribed else None

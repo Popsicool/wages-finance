@@ -29,7 +29,7 @@ from .serializers import (
     ChangePinSerializer,
     LoanDetailsSerializer,
     AllLoansSerializer,
-    RepaymentSerializer
+    RepaymentSerializer,
 )
 from .models import (Activities,
                      User,
@@ -41,7 +41,9 @@ from .models import (Activities,
                      SavingsActivities,
                      CoporativeActivities,
                      BANK_LISTS,
-                     Loan
+                     Loan,
+                     InvestmentCancel,
+                     SavingsCancel
                      )
 from utils.pagination import CustomPagination
 from django.db import transaction
@@ -343,6 +345,7 @@ class CancelSavings(generics.GenericAPIView):
         # if savings.withdrawal_date > date.today():
         penalty = savings.saved * 0.02
         refund = savings.saved - penalty
+        amt = savings.saved
         with transaction.atomic():
             user.wallet_balance += Decimal(refund)
             savings.amount = 0
@@ -354,6 +357,7 @@ class CancelSavings(generics.GenericAPIView):
             savings.goal_met = False
             savings.payment_details = None
             Activities.objects.create(title="Savings Payment", amount=refund, user=user, activity_type="CREDIT")
+            SavingsCancel.objects.create(savings=savings,penalty=penalty, amount=amt)
             savings.save()
             user.save()
         return Response(data={"message": "success"}, status=status.HTTP_200_OK)
@@ -374,13 +378,15 @@ class CancelInvestment(generics.GenericAPIView):
         pin = serializer.validated_data["pin"]
         if user.pin != pin:
             return Response(data={"message": "invalid pin"}, status=status.HTTP_403_FORBIDDEN)
-        refund = investment_plan.amount - (investment_plan.amount * 0.02)
+        penalty = investment_plan.amount * 0.02
+        refund = investment_plan.amount - penalty
         with transaction.atomic():
             user.wallet_balance += Decimal(refund)
             Activities.objects.create(title="Investment withdrawal", amount=refund, user=user, activity_type="CREDIT")
             investment_plan.status = "WITHDRAWN"
             investment_plan.amount = refund
             investment_plan.save()
+            InvestmentCancel.objects.create(investment=investment_plan, penalty = penalty)
             user.save()
         return Response(data={"message": "success"}, status=status.HTTP_200_OK)
         

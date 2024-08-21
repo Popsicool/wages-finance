@@ -245,6 +245,12 @@ class UserInvestments(models.Model):
 
     def __str__(self):
         return f"{self.user.lastname} - {self.investment.title} - {self.shares} - {self.amount}"
+class InvestmentCancel(models.Model):
+    investment = models.ForeignKey(UserInvestments, on_delete=models.CASCADE)
+    penalty = models.PositiveBigIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        return f"{self.investment.investment.title} -- {self.investment.user.firstname} -- {self.penalty_fee} -- {self.created_at}"
 
 
 SAVINGS_TYPES = [
@@ -320,6 +326,14 @@ SAVINGS_ACTIVITIES_CHOICE = [
     ("WITHDRAWAL", "Withdrawal"),
     ("DIVIDENDS", "Dividends"),
 ]
+
+class SavingsCancel(models.Model):
+    savings = models.ForeignKey(UserSavings, on_delete=models.CASCADE)
+    penalty = models.PositiveBigIntegerField()
+    amount = models.BigIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        return f"{self.investment.investment.title} -- {self.investment.user.firstname} -- {self.penalty_fee} -- {self.created_at}"
 
 
 class SavingsActivities(models.Model):
