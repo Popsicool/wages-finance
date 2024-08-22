@@ -263,6 +263,15 @@ SAVINGS_TYPES = [
 
 
 class UserSavings(models.Model):
+    DAY_OF_WEEK_CHOICES = [
+        ('Monday', 'Monday'),
+        ('Tuesday', 'Tuesday'),
+        ('Wednesday', 'Wednesday'),
+        ('Thursday', 'Thursday'),
+        ('Friday', 'Friday'),
+        ('Saturday', 'Saturday'),
+        ('Sunday', 'Sunday'),
+    ]
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='user_savings')
     type = models.CharField(
@@ -282,6 +291,8 @@ class UserSavings(models.Model):
     )
     
     time = models.TimeField(null=True, blank=True)
+    day_week = models.CharField(max_length=9, choices=DAY_OF_WEEK_CHOICES, blank=True, null=True)
+    day_month = models.PositiveIntegerField(blank=True, null=True)
     payment_details = models.JSONField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -356,6 +356,9 @@ class CancelSavings(generics.GenericAPIView):
             savings.cancel_date = date.today()
             savings.goal_met = False
             savings.payment_details = None
+            savings.time = None
+            savings.day_week = None
+            savings.day_month = None
             Activities.objects.create(title="Savings Payment", amount=refund, user=user, activity_type="CREDIT")
             SavingsCancel.objects.create(savings=savings,penalty=penalty, amount=amt)
             savings.save()

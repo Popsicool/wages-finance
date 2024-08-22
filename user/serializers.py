@@ -105,16 +105,20 @@ class NewSavingsSerializer(serializers.ModelSerializer):
     amount = serializers.IntegerField()
     withdrawal_date = serializers.DateField()
     frequency = serializers.ChoiceField(choices=[("daily", "DAILY"), ("weekly", "WEEKLY"), ("monthly", "MONTHLY")], required=False)
-    time = serializers.TimeField(required=False)
+    time = serializers.TimeField()
+    day_week = serializers.CharField(required=False)
+    day_month = serializers.IntegerField(required=False)
     type = serializers.CharField(read_only = True)
 
     class Meta:
         model = UserSavings
-        fields = ["type", "amount", "start_date", "withdrawal_date", "frequency", "time"]
+        fields = ["type", "amount", "start_date", "withdrawal_date", "frequency", "time", "day_week", "day_month"]
 
     def validate(self, attrs):
-        time = attrs.get("time")
+        day_week = attrs.get("day_week")
+        day_month = attrs.get("day_month")
         withdrawal_date = attrs.get("withdrawal_date")
+        start_date = attrs.get("start_date")
         frequency = attrs.get("frequency")
 
         if frequency:
@@ -122,9 +126,17 @@ class NewSavingsSerializer(serializers.ModelSerializer):
             if frequency not in ["DAILY", "WEEKLY", "MONTHLY"]:
                 raise serializers.ValidationError('Frequency must be one of "DAILY", "WEEKLY", or "MONTHLY".')
 
-            if frequency == "DAILY" and not time:
-                raise serializers.ValidationError('Time must be provided for daily savings')
+            if frequency == "WEEKLY" and not day_week:
+                raise serializers.ValidationError('Day of the week must be provided for weekly savings')
+            if frequency == "MONTHLY" and not day_month:
+                raise serializers.ValidationError('Day of the month must be provided for weekly savings')
+            if day_month:
+                if day_month < 1 or day_month > 31:
+                    raise serializers.ValidationError('Day of the month must be between 1 - 31')
 
+        # Check if the withdrawal_date is in the future
+        if start_date and start_date < date.today():
+            raise serializers.ValidationError('Start date must be a future date.')
         # Check if the withdrawal_date is in the future
         if withdrawal_date and withdrawal_date <= date.today():
             raise serializers.ValidationError('Withdrawal date must be a future date.')
