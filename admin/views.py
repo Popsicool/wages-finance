@@ -316,7 +316,7 @@ class AdminOverview(views.APIView):
         loan_filter = disbured.filter(date_approved__range=[start_date, end_date])
         all_loan_amount = disbured.aggregate(Sum('amount'))['amount__sum'] or 0
         loan_filter_amount = loan_filter.aggregate(Sum('amount'))['amount__sum'] or 0
-        percentage_repayed = (total_repaid / disbured.count()) * 100
+        percentage_repayed = (total_repaid / disbured.count()) * 100 if disbured.count() else 0
 
         repayment_activities = Activities.objects.filter(title="Loan Repayment")
         loan_total_repayment = repayment_activities.aggregate(Sum('amount'))['amount__sum'] or 0
