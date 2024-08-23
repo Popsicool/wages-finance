@@ -106,7 +106,14 @@ class NewSavingsSerializer(serializers.ModelSerializer):
     withdrawal_date = serializers.DateField()
     frequency = serializers.ChoiceField(choices=[("daily", "DAILY"), ("weekly", "WEEKLY"), ("monthly", "MONTHLY")], required=False)
     time = serializers.TimeField()
-    day_week = serializers.CharField(required=False)
+    day_week = serializers.ChoiceField(required=False, choices=[
+        ('Monday', 'Monday'),
+        ('Tuesday', 'Tuesday'),
+        ('Wednesday', 'Wednesday'),
+        ('Thursday', 'Thursday'),
+        ('Friday', 'Friday'),
+        ('Saturday', 'Saturday'),
+        ('Sunday', 'Sunday'),])
     day_month = serializers.IntegerField(required=False)
     type = serializers.CharField(read_only = True)
 

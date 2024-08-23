@@ -545,10 +545,14 @@ class AdminUserSavingsDataSerializers(serializers.ModelSerializer):
         return obj.saved
 
 
-class AdminUserSavingsBreakdown(serializers.ModelSerializer):
+class AdminUserSavingsBreakdownSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserSavings
+        fields = ["payment_details"]
+class AdminUserSavingsInterestSerializer(serializers.ModelSerializer):
     class Meta:
         model = SavingsActivities
-        fields = ["created_at", "amount", "balance"]
+        fields = ["created_at", "amount","interest", "balance"]
 class AdminUserCoporativeBreakdownSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoporativeActivities

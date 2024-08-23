@@ -298,6 +298,9 @@ class FundSavings(generics.GenericAPIView):
         if not savings:
             return Response(data={"message": "Set savings option first"}, status=status.HTTP_400_BAD_REQUEST)
         serializer.is_valid(raise_exception=True)
+        today = datetime.now().date()
+        days_to_withdrawal = (savings.withdrawal_date - today).days
+
         with transaction.atomic():
             pin = serializer.validated_data["pin"]
             amount = serializer.validated_data["amount"]
@@ -308,13 +311,16 @@ class FundSavings(generics.GenericAPIView):
             if user.wallet_balance < amount:
                 return Response(data={"message": "Insufficent amount in wallet"}, status=status.HTTP_403_FORBIDDEN)
             user.wallet_balance -= amount
+            interest = days_to_withdrawal * 0.000329 * amount
+            savings.interest += interest
+
             user.save()
             savings.saved += amount
             savings.all_time_saved += amount
-            savings.mark_payment_as_made(timezone.now().date(), int(amount))
+            savings.mark_payment_as_made(timezone.now(), int(amount))
             savings.save()
             new_savings_activity = SavingsActivities.objects.create(savings=savings, amount=amount,
-                                                                    balance = savings.saved,
+                                                                    balance = savings.saved, interest=interest,
                                                                     user=user)
             new_savings_activity.save()
             return Response(data={"message": "success"}, status=status.HTTP_202_ACCEPTED)
@@ -356,6 +362,7 @@ class CancelSavings(generics.GenericAPIView):
             savings.cancel_date = date.today()
             savings.goal_met = False
             savings.payment_details = None
+            savings.interest = 0
             savings.time = None
             savings.day_week = None
             savings.day_month = None

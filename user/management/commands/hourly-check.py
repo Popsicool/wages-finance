@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
+from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import calendar
 from user.models import UserSavings, SavingsActivities
@@ -24,13 +25,13 @@ class Command(BaseCommand):
 
             if saving.frequency == 'DAILY':
                 if saving.time == now_time :
-                    saving.mark_payment_as_made(today, saving.amount)
+                    saving.mark_payment_as_made(timezone.now(), saving.amount)
                     user.wallet_balance -= saving.amount
                     user.save()
 
             elif saving.frequency == 'WEEKLY':
                 if saving.day_week == today.strftime('%A') and saving.time == now_time :
-                    saving.mark_payment_as_made(today, saving.amount)
+                    saving.mark_payment_as_made(timezone.now(), saving.amount)
                     user.wallet_balance -= saving.amount
                     user.save()
 
@@ -45,7 +46,11 @@ class Command(BaseCommand):
                         payment_date = today
 
                     if payment_date.day == saving.day_month and saving.time == now_time :
-                        saving.mark_payment_as_made(payment_date, saving.amount)
+                        payment_datetime = timezone.make_aware(
+                            datetime.combine(payment_date, saving.time),  # Combine the date and time
+                            timezone.get_current_timezone()  # Set the current timezone
+                        )
+                        saving.mark_payment_as_made(payment_datetime, saving.amount)
                         user.wallet_balance -= saving.amount
                         user.save()
             new_savings_activity = SavingsActivities.objects.create(savings=savings, amount=saving.amount,

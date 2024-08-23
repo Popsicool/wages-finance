@@ -3,7 +3,8 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.validators import MinLengthValidator, MinValueValidator, MaxValueValidator
 from datetime import timedelta
-from datetime import date
+from datetime import date, datetime
+from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 # Create your models here.
 
@@ -277,6 +278,7 @@ class UserSavings(models.Model):
     type = models.CharField(
         max_length=35, choices=SAVINGS_TYPES, default=SAVINGS_TYPES[0][0])
     amount = models.BigIntegerField()
+    interest = models.BigIntegerField(default=0)
     target_amount = models.BigIntegerField(blank=True, null=True)
     all_time_saved = models.BigIntegerField(default=0)
     saved = models.BigIntegerField(default=0)
@@ -304,7 +306,15 @@ class UserSavings(models.Model):
         current_date = self.start_date + relativedelta(days=1)
 
         while current_date <= self.withdrawal_date:
-            payment_details[current_date.strftime('%d/%m/%Y')] = {"amount": self.amount, "paid_status": False}
+            # Use the default time specified in the object
+            default_time_str = self.time.strftime('%H:%M:%S') if self.time else '00:00:00'
+            entry_str = current_date.strftime(f'%d/%m/%Y {default_time_str}')
+            
+            payment_details[entry_str] = {
+                "amount": self.amount,
+                "paid_status": False,
+                "balance": 0,  # Balance starts at 0 before any payments are made
+            }
             
             if self.frequency == 'DAILY':
                 current_date += relativedelta(days=1)
@@ -318,16 +328,51 @@ class UserSavings(models.Model):
         self.payment_details = payment_details
         self.target_amount = int(len(payment_details) * self.amount)
         self.save()
-    def mark_payment_as_made(self, date, amount):
-        date_str = date.strftime('%d/%m/%Y')
-        if date_str in self.payment_details and self.payment_details[date_str]["paid_status"] is True:
-            self.payment_details[date_str] = {"amount": (self.payment_details[date_str]["amount"] + amount), "paid_status": True}
-        elif date_str not in self.payment_details:
-            self.payment_details[date_str] = {"amount": amount, "paid_status": True}
-        else:
-            self.payment_details[date_str] = {"amount": amount, "paid_status": True}
-        
+    def mark_payment_as_made(self, payment_datetime, amount):
+        # Convert payment_datetime to a timezone-aware datetime if it's not already
+        if timezone.is_naive(payment_datetime):
+            payment_datetime = timezone.make_aware(payment_datetime, timezone.get_current_timezone())
+        new_entry_str = payment_datetime.strftime('%d/%m/%Y %H:%M:%S')
+
+        # Ensure all existing entries are timezone-aware for comparison
+        payment_details_updated = {}
+        for entry in self.payment_details:
+            entry_datetime = datetime.strptime(entry, '%d/%m/%Y %H:%M:%S')
+            if timezone.is_naive(entry_datetime):
+                entry_datetime = timezone.make_aware(entry_datetime, timezone.get_current_timezone())
+
+            if entry_datetime.date() == payment_datetime.date():
+                if self.payment_details[entry]['paid_status'] is False:
+                    # Replace the entry with status False
+                    payment_details_updated[new_entry_str] = {
+                        "amount": amount,
+                        "paid_status": True,
+                        "balance": self.saved + amount,
+                    }
+                else:
+                    # If there is already an entry with True status, add new one
+                    payment_details_updated[entry] = self.payment_details[entry]
+                    payment_details_updated[new_entry_str] = {
+                        "amount": amount,
+                        "paid_status": True,
+                        "balance": self.saved + amount,
+                    }
+            else:
+                # Keep existing entries that are not on the payment date
+                payment_details_updated[entry] = self.payment_details[entry]
+
+        # Update the balance for all future entries
+        future_dates = [date_str for date_str in payment_details_updated if timezone.make_aware(datetime.strptime(date_str, '%d/%m/%Y %H:%M:%S'), timezone.get_current_timezone()) > payment_datetime]
+        for future_date in future_dates:
+            future_date_datetime = datetime.strptime(future_date, '%d/%m/%Y %H:%M:%S')
+            if timezone.is_naive(future_date_datetime):
+                future_date_datetime = timezone.make_aware(future_date_datetime, timezone.get_current_timezone())
+            
+            payment_details_updated[future_date]["balance"] += amount
+
+        self.payment_details = payment_details_updated
         self.save()
+    
     def __str__(self):
         return f"{self.user.lastname} - {self.type} - {self.amount} - {self.start_date} - {self.withdrawal_date}"
 
@@ -352,6 +397,7 @@ class SavingsActivities(models.Model):
         UserSavings, on_delete=models.CASCADE, related_name="savings_activities"
     )
     amount = models.IntegerField()
+    interest = models.BigIntegerField(default=0)
     balance = models.BigIntegerField(default=0)
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='user_saving_activity')

@@ -20,6 +20,7 @@ urlpatterns = [
     path('user/active_investment/<id>', views.AdminUserInvestmentBreakdown.as_view(), name='single_user_investment'),
     path('user/investment_history/<id>', views.AdminUserInvestmentHistory.as_view(), name='single_user_history'),
     path('user/savings_breakdown/<id>', views.AdminUserSavingsBreakdown.as_view(), name='single_user_savings_breakdown'),
+    path('user/savings_interest/<id>', views.AdminUserSavingsInterest.as_view(), name='single_user_savings_interest'),
     path('user/coop_breakdown/<id>', views.AdminUserCoporativeBreakdown.as_view(), name='single_user_coop_breakdown'),
     path('user/savings/<id>', views.AdminUserSavingsData.as_view(), name='single_user_savings'),
     path('suspend/<id>', views.SuspendAccount.as_view(), name='suspend_account'),

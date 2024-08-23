@@ -45,11 +45,12 @@ from .serializers import (
     AdminUserInvestmentSerializer,
     AdminUserInvestmentSerializerHistory,
     AdminUserSavingsDataSerializers,
-    AdminUserSavingsBreakdown,
+    AdminUserSavingsBreakdownSerializer,
     AdminUserCoporativeBreakdownSerializer,
     AdminReferralList,
     AdminSingleInvestment,
-    SingleInvestmentInvestors
+    SingleInvestmentInvestors,
+    AdminUserSavingsInterestSerializer
 )
 from transaction.models import Transaction
 import random
@@ -269,6 +270,7 @@ class AdminOverview(views.APIView):
             return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
         start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
+        start_date = start_date.replace(hour=0, minute=0, second=0)
         if end_date:
             end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
         end_date = end_date or today
@@ -745,6 +747,7 @@ class AdminInvestmentDashboards(views.APIView):
             return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
         start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
+        start_date = start_date.replace(hour=0, minute=0, second=0)
         if end_date:
             end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
         end_date = end_date or today
@@ -871,6 +874,7 @@ class AdminLoanDashboard(views.APIView):
             return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
         start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
+        start_date = start_date.replace(hour=0, minute=0, second=0)
         if end_date:
             end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
         end_date = end_date or today
@@ -1063,6 +1067,7 @@ class AdminUserCoporativeBreakdown(generics.GenericAPIView):
         end_date = self.request.query_params.get('end_date', None)
         today = now()
         start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
+        start_date = start_date.replace(hour=0, minute=0, second=0)
         if end_date:
             end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
         end_date = end_date or today
@@ -1163,6 +1168,7 @@ class AdminUserInvestmentHistory(generics.GenericAPIView):
         inv_status = self.request.query_params.get('status', None)
         today = now()
         start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
+        start_date = start_date.replace(hour=0, minute=0, second=0)
         if end_date:
             end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
         end_date = end_date or today
@@ -1203,8 +1209,8 @@ class AdminUserSavingsData(generics.GenericAPIView):
         queryset = UserSavings.objects.filter(user=user)
         return queryset
 
-class AdminUserSavingsBreakdown(generics.GenericAPIView):
-    serializer_class = AdminUserSavingsBreakdown
+class AdminUserSavingsInterest(generics.GenericAPIView):
+    serializer_class = AdminUserSavingsInterestSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     @swagger_auto_schema(
         manual_parameters=[
@@ -1228,19 +1234,60 @@ class AdminUserSavingsBreakdown(generics.GenericAPIView):
             return self.get_paginated_response(serializer.data)
         serializer = self.serializer_class(queryset, many=True)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
-
     def get_queryset(self):
         id = self.kwargs['id']
-        user = get_object_or_404(User, pk=id)
+        savings = get_object_or_404(UserSavings, pk=id)
         start_date = self.request.query_params.get('start_date', None)
         end_date = self.request.query_params.get('end_date', None)
         today = now()
         start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
+        start_date = start_date.replace(hour=0, minute=0, second=0)
         if end_date:
             end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
         end_date = end_date or today
         end_date += timedelta(days=1)
-        queryset = SavingsActivities.objects.filter(user = user, created_at__range=[start_date, end_date]).order_by('-created_at')
+        queryset = SavingsActivities.objects.filter(savings=savings, created_at__range=[start_date, end_date]).order_by('-created_at')
+        return queryset
+
+class AdminUserSavingsBreakdown(generics.GenericAPIView):
+    serializer_class = AdminUserSavingsBreakdownSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    # @swagger_auto_schema(
+    #     manual_parameters=[
+    #         openapi.Parameter('start_date', openapi.IN_QUERY,
+    #                           description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+    #         openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)',
+    #                           type=openapi.TYPE_STRING, required=False),
+    #     ]
+    # )
+    def get(self, request, id):
+        # start_date = self.request.query_params.get('start_date', None)
+        # end_date = self.request.query_params.get('end_date', None)
+        # if start_date and not is_valid_date_format(start_date):
+        #     return Response(data={'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        # if end_date and not is_valid_date_format(end_date):
+        #     return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        queryset = self.get_queryset()
+        # page = self.paginate_queryset(queryset)
+        # if page is not None:
+        #     serializer = self.serializer_class(page, many=True)
+        #     return self.get_paginated_response(serializer.data)
+        serializer = self.serializer_class(queryset)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+    def get_queryset(self):
+        id = self.kwargs['id']
+        queryset = get_object_or_404(UserSavings, pk=id)
+        # start_date = self.request.query_params.get('start_date', None)
+        # end_date = self.request.query_params.get('end_date', None)
+        # today = now()
+        # start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
+        # start_date = start_date.replace(hour=0, minute=0, second=0)
+        # if end_date:
+        #     end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
+        # end_date = end_date or today
+        # end_date += timedelta(days=1)
+        # queryset = SavingsActivities.objects.filter(user = user, created_at__range=[start_date, end_date]).order_by('-created_at')
         return queryset
 
 
@@ -1277,6 +1324,7 @@ class AdminUserCoporativeBreakdown(generics.GenericAPIView):
         end_date = self.request.query_params.get('end_date', None)
         today = now()
         start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
+        start_date = start_date.replace(hour=0, minute=0, second=0)
         if end_date:
             end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
         end_date = end_date or today
@@ -1306,6 +1354,7 @@ class AdminListReferal(generics.GenericAPIView):
             return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
         today = now()
         start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
+        start_date = start_date.replace(hour=0, minute=0, second=0)
         if end_date:
             end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
         end_date = end_date or today
