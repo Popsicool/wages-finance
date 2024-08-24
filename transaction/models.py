@@ -13,7 +13,7 @@ TRANSACTION_STATUS = [
 ]
 TRANSACTION_TYPE = [
     ("WALLET-CREDIT", "Wallet Credit"),
-    ("Withdrawal", "Withdrawal"),
+    ("WITHDRAWAL", "Withdrawal"),
     ("DATA_PURCHASE", "Data purchase"),
 ]
 TRANSACTION_NATURE = [

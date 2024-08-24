@@ -184,12 +184,23 @@ class AdminTransactionSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(source="user.id")
     lastname = serializers.CharField(source="user.lastname")
     phone = serializers.CharField(source="user.phone")
+    withdrawal_details = serializers.SerializerMethodField()
 
     class Meta:
         model = Transaction
         fields = ["id", "firstname", "lastname", "email", "phone",
-                  "amount", "status", "description", "user_id", "type"]
-
+                  "amount", "status", "description", "user_id", "type", "withdrawal_details"]
+    def get_withdrawal_details(self, obj):
+        withdrawal = obj.user_withdrawal_transaction.first()
+        if not withdrawal:
+            return None
+        details = {
+            "id": withdrawal.id,
+            "amount":withdrawal.amount,
+            "bank_name": withdrawal.bank_name,
+            "account_number": withdrawal.account_number
+        }
+        return details
 
 class AdminCreateInvestmentSerializer(serializers.ModelSerializer):
     title = serializers.CharField(max_length=255)

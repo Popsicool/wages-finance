@@ -245,7 +245,7 @@ class AdminTransactions(generics.GenericAPIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def get_queryset(self):
-        return Transaction.objects.all().order_by("-created_date")
+        return Transaction.objects.all().order_by("-created_at")
 
 
 class AdminOverview(views.APIView):
