@@ -496,7 +496,12 @@ class ApproveWithdrawal(views.APIView):
             return Response(data={"message": "Withdrawal not in pending state"}, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():
             # TODO call safehaven api
-            withdraw.status = "PROCESSING"
+            withdraw.status = "SUCCESS"
+            withdrawal_transaction = withdraw.transaction
+            if withdrawal_transaction:
+                withdrawal_transaction.status = "SUCCESS"
+                withdrawal_transaction.save()
+
             withdraw.admin_user = user
             withdraw.save()
             new_notification = Notification.objects.create(
@@ -521,6 +526,11 @@ class RejectWithdrawal(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         with transaction.atomic():
             reason = serializer.validated_data["reason"]
+            withdrawal_transaction = withdraw.transaction
+            if withdrawal_transaction:
+                withdrawal_transaction.status = "FAILED"
+                withdrawal_transaction.message = reason
+                withdrawal_transaction.save()
             withdraw.status = "REJECTED"
             withdraw.message = reason
             withdraw.admin_user = user

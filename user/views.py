@@ -1,3 +1,4 @@
+from transaction.models import Transaction
 from user.consumers import send_socket_user_notification
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
@@ -65,10 +66,11 @@ class UserActivitiesView(generics.GenericAPIView):
             user=user).order_by("-created_at")
         coporative_activities_qs = CoporativeActivities.objects.filter(
             user_coop__user=user).order_by("-created_at")
+        transactions_qs = Transaction.objects.filter(user=user).order_by("-created_at")
 
         combined_qs = sorted(
             chain(activities_qs, savings_activities_qs,
-                  coporative_activities_qs),
+                  coporative_activities_qs, transactions_qs),
             key=attrgetter('created_at'),
             reverse=True
         )
@@ -415,6 +417,11 @@ class WithdrawalView(generics.GenericAPIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         amount = serializer.validated_data["amount"]
+        account_number = serializer.validated_data["account_number"]
+        if amount < 1000:
+            # TODO ask clarification
+            return Response(data={"message": "Amount must be at least N1000"}, status=status.HTTP_401_UNAUTHORIZED)
+         
         pin = serializer.validated_data["pin"]
         bank_code = serializer.validated_data["bank_code"]
         if user.pin != pin:
@@ -427,15 +434,24 @@ class WithdrawalView(generics.GenericAPIView):
             return Response(data={"message": "invalid bank code"}, status=status.HTTP_400_BAD_REQUEST)
         matching_bank = matching_bank[0]
         with transaction.atomic():
-            serializer.save(user=request.user, bank_name=matching_bank["name"])
+            new_transaction = Transaction.objects.create(
+                user = user,
+                amount = amount,
+                type = "Withdrawal",
+                description = f'N{amount} withdrawal',
+                source = f'{matching_bank["name"]}/{account_number}'
+            )
+            new_transaction.save()
+            serializer.save(user=user, bank_name=matching_bank["name"], transaction=new_transaction)
+             
             user.wallet_balance -= amount
             user.save()
-            new_activity = Activities.objects.create(
-                title="Fund withdrawal",
-                amount=amount,
-                user=user
-            )
-            new_activity.save()
+            # new_activity = Activities.objects.create(
+            #     title="Fund withdrawal",
+            #     amount=amount,
+            #     user=user
+            # )
+            # new_activity.save()
             return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 

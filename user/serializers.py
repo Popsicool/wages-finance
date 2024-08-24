@@ -13,6 +13,7 @@ from .models import (
 )
 import re
 from datetime import date, datetime
+from transaction.models import Transaction
 
 
 # def is_valid_date_format(date_string):
@@ -35,6 +36,19 @@ class UserActivitiesSerializer(serializers.Serializer):
                 "activity_type": instance.activity_type,
                 "created_at": instance.created_at,
                 "source": "activities"
+            }
+        elif isinstance(instance, Transaction):
+            return{
+                "title": instance.type.title(),
+                "amount": instance.amount,
+                "description": instance.description,
+                "activity_type": "CREDIT" if instance.type == "WALLET-CREDIT" else "DEBIT",
+                "created_at": instance.created_at,
+                "destination": instance.source,
+                "reference": f'WF-{str(instance.id).upper()}',
+                "reason": instance.message, 
+                "source": "transactions",
+                "status": instance.status
             }
         elif isinstance(instance, SavingsActivities):
             return {

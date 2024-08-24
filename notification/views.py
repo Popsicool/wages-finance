@@ -27,27 +27,27 @@ class Webhook(views.APIView):
             return Response(data={"message":"success"})
         with transaction.atomic():
             user.wallet_balance += amount
-            new_activity = Activities.objects.create(title="Wallet Deposit", amount=amount, user=user, activity_type="CREDIT")
+            # new_activity = Activities.objects.create(title="Wallet Deposit", amount=amount, user=user, activity_type="CREDIT")
             new_transaction = Transaction.objects.create(
                 user=user,
                 amount = amount,
                 source = source,
-                status="SUCCESS",
+                status="PENDING",
                 description = f"N{amount} deposited by {user.firstname}"
             )
             new_transaction.save()
-            new_activity.save()
+            # new_activity.save()
             user.save()
-            data = {
-                "balance": float(user.wallet_balance),
-                "activity":{
-                    "title":new_activity.title,
-                    "amount": float(new_activity.amount),
-                    "activity_type": new_activity.activity_type,
-                    "created_at": new_activity.created_at.isoformat()
-                }
-            }
-            send_socket_user_notification(user.id,data)
+            # data = {
+            #     "balance": float(user.wallet_balance),
+            #     "activity":{
+            #         "title":new_activity.title,
+            #         "amount": float(new_activity.amount),
+            #         "activity_type": new_activity.activity_type,
+            #         "created_at": new_activity.created_at.isoformat()
+            #     }
+            # }
+            # send_socket_user_notification(user.id,data)
         return Response(data={"message":"success"})
 
     # serializer_class = UserActivitiesSerializer

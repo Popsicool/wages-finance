@@ -6,6 +6,7 @@ from datetime import timedelta
 from datetime import date, datetime
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
+
 # Create your models here.
 
 
@@ -187,6 +188,7 @@ WITHDRAWAL_STATUS = [
 
 
 class Withdrawal(models.Model):
+    from transaction.models import Transaction
     amount = models.IntegerField()
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='user_withdrawal')
@@ -194,6 +196,9 @@ class Withdrawal(models.Model):
                                    related_name='user_withdrawal_approval', null=True, blank=True)
     bank_name = models.CharField()
     bank_code = models.CharField()
+    transaction = models.ForeignKey(Transaction,
+                                    on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='user_withdrawal_transaction')
     account_number = models.CharField()
     status = models.CharField(
         choices=WITHDRAWAL_STATUS, default=WITHDRAWAL_STATUS[0][0])
