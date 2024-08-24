@@ -59,7 +59,7 @@ from utils.email import SendMail
 from rest_framework import status
 from django.db import transaction
 from django.utils import timezone
-from django.db.models import Sum, F, ExpressionWrapper, DecimalField
+from django.db.models import Sum, F, ExpressionWrapper, DecimalField, Subquery, OuterRef
 from datetime import datetime, date
 from django.shortcuts import get_object_or_404
 import re
@@ -756,12 +756,28 @@ class AdminInvestmentDashboards(views.APIView):
 
         all_investments = UserInvestments.objects.all()
 
-        total_investments = all_investments.aggregate(
-            total_amount=Sum('amount'))['total_amount'] or 0
-        count_of_investors = all_investments.count()
-        filter_investments = all_investments.filter(created_at__range=[start_date, end_date])
 
-        total_interest = all_investments.annotate(
+        latest_investment_subquery = UserInvestments.objects.filter(
+            user=OuterRef('user')
+        ).order_by('-created_at').values('id')[:1]
+
+        latest_investments = all_investments.filter(
+            id__in=Subquery(latest_investment_subquery)
+        )
+        # Calculate the total amount from the latest investments
+        total_investments = latest_investments.aggregate(
+            total_amount=Sum('amount')
+        )['total_amount'] or 0
+
+        # Count of unique investors
+        count_of_investors = latest_investments.distinct('user').count()
+
+        filter_investments = latest_investments.filter(
+            created_at__range=[start_date, end_date]
+        )
+
+        # Calculate the total interest for the latest investments
+        total_interest = latest_investments.annotate(
             interest=ExpressionWrapper(
                 F('amount') * F('investment__interest_rate') / 100,
                 output_field=DecimalField()
@@ -770,11 +786,19 @@ class AdminInvestmentDashboards(views.APIView):
             total_interest=Sum('interest')
         )['total_interest'] or 0
 
+        # Calculate the total amount from the latest filtered investments
         total_by_filter = filter_investments.aggregate(
-            total_amount=Sum('amount'))['total_amount'] or 0
-        count_by_filter = filter_investments.count()
+            total_amount=Sum('amount')
+        )['total_amount'] or 0
+
+        # Count of unique investors within the filtered investments
+        count_by_filter = filter_investments.distinct('user').count()
+
+        # Get the current time
         to_now = timezone.now()
-        upcoming_payout_this_month = all_investments.filter(
+
+        # Upcoming payout this month from the latest investments
+        upcoming_payout_this_month = latest_investments.filter(
             status="ACTIVE",
             due_date__year=to_now.year,
             due_date__month=to_now.month
@@ -786,7 +810,9 @@ class AdminInvestmentDashboards(views.APIView):
         ).aggregate(
             total_amount=Sum('payout')
         )['total_amount'] or 0
-        upcoming_payout_today = all_investments.filter(
+
+        # Upcoming payout today from the latest investments
+        upcoming_payout_today = latest_investments.filter(
             status="ACTIVE",
             due_date=today
         ).annotate(
@@ -797,7 +823,9 @@ class AdminInvestmentDashboards(views.APIView):
         ).aggregate(
             total_amount=Sum('payout')
         )['total_amount'] or 0
-        active_investments = all_investments.filter(
+
+        # Count of active investments from the latest investments
+        active_investments = latest_investments.filter(
             status="ACTIVE"
         ).count()
         all_cancelled_investments = InvestmentCancel.objects.all()

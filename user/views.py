@@ -93,7 +93,7 @@ class UserDashboard(generics.GenericAPIView):
 
 
 class GetInvestmentPlans(views.APIView):
-    # permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
     serializer_class = InvestmentPlanSerializer
     pagination_class = CustomPagination
 
@@ -395,6 +395,9 @@ class CancelInvestment(generics.GenericAPIView):
             Activities.objects.create(title="Investment withdrawal", amount=refund, user=user, activity_type="CREDIT")
             investment_plan.status = "WITHDRAWN"
             investment_plan.amount = refund
+            investment = investment_plan.investment
+            investment.quota += investment_plan.shares
+            investment.save()
             investment_plan.save()
             InvestmentCancel.objects.create(investment=investment_plan, penalty = penalty)
             user.save()
@@ -515,11 +518,14 @@ class UserInvest(generics.GenericAPIView):
     def post(self, request, id):
         user = request.user
         investment = get_object_or_404(InvestmentPlan, pk=id)
-        if UserInvestments.objects.filter(user=user, investment=investment).exists():
-            return Response(data={"message": "You are already an investor"}, status=status.HTTP_400_BAD_REQUEST)
+        if UserInvestments.objects.filter(user=user, investment=investment, status="ACTIVE").exists():
+            return Response(data={"message": "You are already an active investor"}, status=status.HTTP_400_BAD_REQUEST)
+        incr = False
+        if UserInvestments.objects.filter(user=user, investment=investment, status__in=["MATURED", "WITHDRAWN"]).exists():
+            incr = True
         if not investment.is_active:
             return Response(data={"message": "investment no more active"}, status=status.HTTP_400_BAD_REQUEST)
-        if investment.investors >= investment.quota:
+        if investment.quota <= 0:
             return Response(data={"message": "investment no more active"}, status=status.HTTP_400_BAD_REQUEST)
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -527,15 +533,20 @@ class UserInvest(generics.GenericAPIView):
         if user.pin != pin:
             return Response(data={"message": "invalid pin"}, status=status.HTTP_401_UNAUTHORIZED)
         unit = serializer.validated_data["unit"]
+        if unit > investment.quota:
+            return Response(data={"message": "Unit more than available quota"}, status=status.HTTP_400_BAD_REQUEST)
         amount = unit * investment.unit_share
         if user.wallet_balance < amount:
             return Response(data={"message": "insufficient fund"}, status=status.HTTP_400_BAD_REQUEST)
+        if not user.is_subscribed:
+            return Response(data={"message": "Subscribe to coporative before investing"}, status=status.HTTP_400_BAD_REQUEST)
         user_coporative_balance = CoporativeMembership.objects.get(
             user=user).balance
         if (amount * 0.2) > user_coporative_balance:
             return Response(data={"message": "You must have more than 20 percent of the amount in your coporative balance"}, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():
-            investment.investors += 1
+            if not incr:
+                investment.investors += 1
             user.wallet_balance -= amount
             user.save()
             new_user_investment = UserInvestments.objects.create(
@@ -545,10 +556,12 @@ class UserInvest(generics.GenericAPIView):
                 amount=amount,
                 due_date=investment.end_date
             )
+            investment.quota -= unit
             new_user_investment.save()
-            if investment.quota == investment.investors:
+            if investment.quota <= 0:
+                investment.is_active = False
                 # TODO
-                pass
+                # pass
             investment.save()
         return Response(data=serializer.data, status=status.HTTP_201_CREATED)
 

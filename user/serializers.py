@@ -84,14 +84,15 @@ class UserDashboardSerializer(serializers.ModelSerializer):
 class InvestmentPlanSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     subscribers = serializers.SerializerMethodField()
+    # available_unit = serializers.SerializerMethodField()
 
     class Meta:
         model = InvestmentPlan
-        fields = ["id", "title",  "unit_share",
+        fields = ["id", "title",  "unit_share","quota",
                   "interest_rate", "end_date", "image", "subscribers"]
 
     def get_subscribers(self, obj):
-        return UserInvestments.objects.filter(investment=obj).count()
+        return UserInvestments.objects.filter(investment=obj).distinct('user').count()
 
     def get_image(self, obj):
         return obj.image.url

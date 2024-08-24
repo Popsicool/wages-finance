@@ -17,6 +17,8 @@ class Webhook(views.APIView):
             return Response(data={"message":"success"})
         t_status = t_data.get("status")
         creditAccountNumber = t_data.get("creditAccountNumber")
+        debitAccountName = t_data.get("debitAccountName")
+        source = f"Bank Transfer/{debitAccountName}"
         amount = t_data.get("amount")
         if t_status != "Completed" or not creditAccountNumber or not amount:
             return Response(data={"message":"success"})
@@ -29,6 +31,7 @@ class Webhook(views.APIView):
             new_transaction = Transaction.objects.create(
                 user=user,
                 amount = amount,
+                source = source,
                 status="SUCCESS",
                 description = f"N{amount} deposited by {user.firstname}"
             )

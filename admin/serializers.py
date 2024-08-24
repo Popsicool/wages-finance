@@ -228,7 +228,7 @@ class AdminSingleInvestment(serializers.ModelSerializer):
             total_amount=Sum('amount'))['total_amount'] or 0
         return amt
     def get_investor_count(self, obj):
-        return UserInvestments.objects.filter(investment=obj).count()
+        return UserInvestments.objects.filter(investment=obj).values('user').distinct().count()
     def get_days_left(self, obj):
         today = timezone.now()
         days = (obj.end_date - today.date()).days

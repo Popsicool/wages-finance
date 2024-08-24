@@ -26,6 +26,8 @@ class Transaction(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     amount = models.PositiveBigIntegerField()
     revenue = models.PositiveBigIntegerField(default=0)
+    source = models.CharField(max_length=1000)
+    message = models.TextField(null=True, blank=True)
     status = models.CharField(
         max_length=250,
         choices=TRANSACTION_STATUS,
