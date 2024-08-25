@@ -308,7 +308,7 @@ class UserSavings(models.Model):
             return
         
         payment_details = {}
-        current_date = self.start_date + relativedelta(days=1)
+        current_date = self.start_date
 
         while current_date <= self.withdrawal_date:
             # Use the default time specified in the object
