@@ -218,8 +218,7 @@ class VerifyBVNView(generics.GenericAPIView):
             return Response({"message":"Use BVN initialization endpoint first"}, status=status.HTTP_400_BAD_REQUEST)
         user_det = dict(user.bvn_verify_details)
         _id = user_det["_id"]
-        code = user_det["otpId"]
-        # code = serializer.validated_data["code"]
+        code = serializer.validated_data["code"]
         data = {"_id":_id, "otp":code, "type":"BVN"}
         # call safehaven verification endpoint
         verify_status, verify_message = safe_validate(data)
@@ -238,6 +237,8 @@ class VerifyBVNView(generics.GenericAPIView):
                 "otp": user_det["otpId"]
                 }
             account_number, account_name = create_safehaven_account(acc_data)
+            if not account_number:
+                return Response(data={"message": account_name}, status=status.HTTP_400_BAD_REQUEST)
             user.account_number = account_number
             user.account_name = account_name
             data = {

@@ -11,6 +11,7 @@ TOKEN = config("SAFEHAVEN_TOKEN")
 ACCOUNT = config("SAFEHAVEN_Account")
 CLIENT_ID = config("CLIENT_ID")
 CLIENT_ASSERTION = config("CLIENT_ASSERTION")
+BASE_URL = config("SAFE_HAVEN_BASE_URL")
 headers = {
     "accept": "application/json",
     "content-type": "application/json",
@@ -25,7 +26,7 @@ def safehaven_auth(a=None):
     token_expired = token and (current_time - token.updated_at) > timedelta(minutes=2)
 
     if a is not None or not token or token_expired:
-        url = "https://api.sandbox.safehavenmfb.com/oauth2/token"
+        url = f"{BASE_URL}/oauth2/token"
         payload = {
             "grant_type": "client_credentials",
             "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
@@ -73,7 +74,7 @@ def safehaven_auth(a=None):
 def safe_initiate(data):
     safehaven_auth()  # Ensure the token is up-to-date
 
-    url = "https://api.sandbox.safehavenmfb.com/identity/v2"
+    url = f"{BASE_URL}/identity/v2"
     payload = {
         "type": data["type"],
         "number": str(data["number"]),
@@ -81,16 +82,29 @@ def safe_initiate(data):
     }
     try:
         response = requests.post(url, json=payload, headers=headers)
+
+        resp = response.json()
         if response.status_code == 201:
-            return (True, response.json()['data'])
+            if "data" in resp.keys():
+                return (True, response.json()['data'])
+            if resp['statusCode'] == 403:
+                safehaven_auth(a=True)
+                response = requests.post(url, json=payload, headers=headers)
+                resp = response.json()
+                if response.status_code == 201:
+                    if "data" in resp.keys():
+                        return (True, response.json()['data'])
+                    if resp['statusCode'] == 403:
+                        return (False, "An error occured, Please retry latter")
         if response.status_code == 403:
             # Token expired, get a new token and retry
             safehaven_auth(a=True)
             response = requests.post(url, json=payload, headers=headers)
+            resp = response.json()
             if response.status_code == 201:
-                return (True, response.json()['data'])
-            if response.status_code == 403:
-                return (False, "Expired token - Access Restricted!")
+                if "data" in resp.keys():
+                    return (True, response.json()['data'])
+                return (False, "An error occured, Please retry latter")
         if response.status_code == 500:
             return (False, "Service not responding, please retry")
         return (False, response.json()['data']['debitMessage'])
@@ -101,30 +115,39 @@ def safe_initiate(data):
 
 def safe_validate(data):
     safehaven_auth()  # Ensure the token is up-to-date
-
-    url = "https://api.sandbox.safehavenmfb.com/identity/v2/validate"
+    url = f"{BASE_URL}/identity/v2/validate"
     payload = {
         "type": data["type"],
         "identityId": data["_id"],
         "otp": data["otp"]
     }
     response = requests.post(url, json=payload, headers=headers)
+    resp = response.json()
     if response.status_code == 201:
-        return (True, response.json()["data"]["providerResponse"])
+        if "data" in resp.keys():
+            return (True, response.json()["data"]["providerResponse"])
+        if resp['statusCode'] == 403:
+            safehaven_auth(a=True)
+            response = requests.post(url, json=payload, headers=headers)
+            resp = response.json()
+            if "data" in resp.keys():
+                return (True, response.json()["data"]["providerResponse"])
+            return (False, "An error occured, Please retry latter")
+        return (False, resp["message"])
     if response.status_code == 403:
         # Token expired, get a new token and retry
         safehaven_auth(a=True)
         response = requests.post(url, json=payload, headers=headers)
+        resp = response.json()
         if response.status_code == 201:
-            return (True, response.json()["data"]["providerResponse"])
-        if response.status_code == 403:
-            return (False, "Expired token - Access Restricted!")
-    return (False, "Error")
+            if "data" in resp.keys():
+                return (True, resp["data"]["providerResponse"])
+        return (False, "An error occured, Please retry latter")
+    return (False, "An error occured, Please retry latter")
 
 def create_safehaven_account(data):
     safehaven_auth()  # Ensure the token is up-to-date
-
-    url = "https://api.sandbox.safehavenmfb.com/accounts/subaccount"
+    url = f"{BASE_URL}/accounts/subaccount"
     payload = {
         "phoneNumber": data["phone"],
         "emailAddress": data["email"],
@@ -136,13 +159,26 @@ def create_safehaven_account(data):
     }
     response = requests.post(url, json=payload, headers=headers)
     resp = response.json()
+    if response.status_code == 201:
+        if "data" in resp.keys():
+            return (resp["data"]["accountNumber"], resp["data"]["accountName"])
+        if resp['statusCode'] == 403:
+            safehaven_auth(a=True)
+            response = requests.post(url, json=payload, headers=headers)
+            resp = response.json()
+            if "data" in resp.keys():
+                return (True, response.json()["data"]["providerResponse"])
+            return (False, "An error occured, Please retry latter")
+        return (False, resp["message"])
     if response.status_code == 403:
         # Token expired, get a new token and retry
         safehaven_auth(a=True)
         response = requests.post(url, json=payload, headers=headers)
         resp = response.json()
         if response.status_code == 201:
-            return (resp["data"]["accountNumber"], resp["data"]["accountName"])
-        if response.status_code == 403:
-            return ("Expired token - Access Restricted!", None)
+            if "data" in resp.keys():
+                return (resp["data"]["accountNumber"], resp["data"]["accountName"])
+            return (False, "An error occured, Please retry latter")
+    if not "data" in resp:
+        return (False, resp["message"])
     return (resp["data"]["accountNumber"], resp["data"]["accountName"])

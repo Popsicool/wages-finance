@@ -317,7 +317,7 @@ class FundSavings(generics.GenericAPIView):
             savings.interest += interest
 
             user.save()
-            savings.saved += amount
+            # savings.saved += amount
             savings.all_time_saved += amount
             savings.mark_payment_as_made(timezone.now(), int(amount))
             savings.save()
