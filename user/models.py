@@ -348,6 +348,7 @@ class UserSavings(models.Model):
             self.payment_details[payment_date_str]['balance'] = self.saved + amount
         else:
             self.payment_details[payment_date_str] = {
+                "date": str(payment_datetime.date()),
                 'amount': amount,
                 'paid_status': True,
                 'balance': self.saved + amount,
@@ -3029,3 +3030,4 @@ BANK_LISTS = [
                 "nubanCode": None
     }
 ]
+
