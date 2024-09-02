@@ -12,7 +12,7 @@ from .models import (
     CoporativeActivities
 )
 import re
-from datetime import date, datetime
+from datetime import date, timedelta
 from transaction.models import Transaction
 
 
@@ -118,7 +118,7 @@ class SetPinSerializer(serializers.Serializer):
 
 class NewSavingsSerializer(serializers.ModelSerializer):
     amount = serializers.IntegerField()
-    withdrawal_date = serializers.DateField()
+    duration = serializers.IntegerField(write_only=True)
     frequency = serializers.ChoiceField(choices=[("daily", "DAILY"), ("weekly", "WEEKLY"), ("monthly", "MONTHLY")], required=False)
     time = serializers.TimeField()
     day_week = serializers.ChoiceField(required=False, choices=[
@@ -130,16 +130,17 @@ class NewSavingsSerializer(serializers.ModelSerializer):
         ('Saturday', 'Saturday'),
         ('Sunday', 'Sunday'),])
     day_month = serializers.IntegerField(required=False)
-    type = serializers.CharField(read_only = True)
+    type = serializers.CharField(read_only=True)
 
     class Meta:
         model = UserSavings
-        fields = ["type", "amount", "start_date", "withdrawal_date", "frequency", "time", "day_week", "day_month"]
+        fields = ["type", "amount", "start_date", "duration", "frequency", "time", "day_week", "day_month"]
 
     def validate(self, attrs):
+        # Your existing validation logic
         day_week = attrs.get("day_week")
         day_month = attrs.get("day_month")
-        withdrawal_date = attrs.get("withdrawal_date")
+        duration = attrs.get("duration")
         start_date = attrs.get("start_date")
         frequency = attrs.get("frequency")
 
@@ -156,16 +157,28 @@ class NewSavingsSerializer(serializers.ModelSerializer):
                 if day_month < 1 or day_month > 31:
                     raise serializers.ValidationError('Day of the month must be between 1 - 31')
 
-        # Check if the withdrawal_date is in the future
         if start_date and start_date < date.today():
             raise serializers.ValidationError('Start date must be a future date.')
-        # Check if the withdrawal_date is in the future
-        if withdrawal_date and withdrawal_date <= date.today():
-            raise serializers.ValidationError('Withdrawal date must be a future date.')
+        if duration < 1:
+            raise serializers.ValidationError('Duration must be at least 1 month')
 
-        if frequency:
-            attrs["frequency"] = frequency
+        attrs["frequency"] = frequency
         return attrs
+
+    def validate_time(self, value):
+        if value.minute != 0:
+            raise serializers.ValidationError("Time must be on the hour (HH:00)")
+        return value
+
+    def save(self, **kwargs):
+        # Calculate the withdrawal date before saving the instance
+        start_date = self.validated_data.get("start_date") or date.today()
+        duration = self.validated_data.pop("duration", None)  # Remove 'duration' from validated data
+        if duration:
+            withdrawal_date = start_date + timedelta(days=duration * 30)
+            kwargs['withdrawal_date'] = withdrawal_date
+
+        return super().save(**kwargs)
 
 # class UserActivitiesSerializer(serializers.ModelSerializer):
 #     class Meta:

@@ -195,33 +195,30 @@ class NewSavingsView(generics.GenericAPIView):
     def post(self, request, id):
         if id not in [1, 2, 3, 4, 5]:
             return Response(data={"message": "invalid option"}, status=status.HTTP_400_BAD_REQUEST)
-        option_types = {1: "BIRTHDAY", 2: "CAR-PURCHASE",
-                        3: "VACATION", 4: "GADGET-PURCHASE", 5: "MISCELLANEOUS"}
+        
+        option_types = {1: "BIRTHDAY", 2: "CAR-PURCHASE", 3: "VACATION", 4: "GADGET-PURCHASE", 5: "MISCELLANEOUS"}
         user_option = option_types.get(id)
         user = request.user
-        savings_filter = UserSavings.objects.filter(
-            user=user, type=user_option).first()
-        if not savings_filter:
-            serializer = self.serializer_class(data=request.data)
-        else:
-            serializer = self.serializer_class(
-                instance=savings_filter, data=request.data, partial=True)
+        savings_filter = UserSavings.objects.filter(user=user, type=user_option).first()
+
+        serializer = self.serializer_class(
+            instance=savings_filter, data=request.data, partial=bool(savings_filter)
+        )
 
         serializer.is_valid(raise_exception=True)
 
         with transaction.atomic():
             if not savings_filter:
                 if not serializer.validated_data.get("frequency"):
-                    return Response(data={"message": "frequency is compulsory"},  status=status.HTTP_400_BAD_REQUEST)
-                new_savings = serializer.save(user=user, type=user_option,
-                                start_date=date.today())
+                    return Response(data={"message": "frequency is compulsory"}, status=status.HTTP_400_BAD_REQUEST)
+                new_savings = serializer.save(user=user, type=user_option)
                 new_savings.calculate_payment_details()
                 new_savings.save()
             else:
                 if not savings_filter.start_date:
-                    serializer.save(start_date=date.today(), cycle = savings_filter.cycle + 1)
+                    serializer.save(start_date=date.today(), cycle=savings_filter.cycle + 1)
                 else:
-                    serializer.save(cycle = savings_filter.cycle + 1)
+                    serializer.save(cycle=savings_filter.cycle + 1)
 
             return Response(data=serializer.data, status=status.HTTP_201_CREATED)
 
