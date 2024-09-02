@@ -316,6 +316,7 @@ class UserSavings(models.Model):
             entry_str = current_date.strftime(f'%d/%m/%Y {default_time_str}')
             
             payment_details[entry_str] = {
+                "date": str(current_date),
                 "amount": self.amount,
                 "paid_status": False,
                 "balance": 0,  # Balance starts at 0 before any payments are made
