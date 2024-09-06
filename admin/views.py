@@ -289,7 +289,7 @@ class AdminOverview(views.APIView):
 
         # Filtered transactions for the given period
         filtered_transactions = transactions.filter(
-            created_date__range=[start_date, end_date])
+            created_at__range=[start_date, end_date])
         filtered_sum = filtered_transactions.aggregate(Sum('revenue'))[
             'revenue__sum'] or 0
 
@@ -299,7 +299,7 @@ class AdminOverview(views.APIView):
 
         # Filtered transactions for the given period
         filtered_saving = savings.filter(
-            created_date__range=[start_date, end_date])
+            created_at__range=[start_date, end_date])
         filtered_savings_sum = filtered_saving.aggregate(Sum('amount'))[
             'amount__sum'] or 0
         all_users = User.objects.all()
