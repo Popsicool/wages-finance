@@ -200,6 +200,7 @@ class SetBvnView(generics.GenericAPIView):
         safe_status, resp = safe_initiate(data)
         if safe_status:
             user.bvn_verify_details = resp
+            user.bvn_verify_details["nvb"] = numn
             user.save()
             return Response(data={"message": "success"}, status=status.HTTP_200_OK)
         return Response(data={"message": resp}, status=status.HTTP_400_BAD_REQUEST)
@@ -225,18 +226,20 @@ class VerifyBVNView(generics.GenericAPIView):
         if not verify_status:
             return Response(data={"message": verify_message}, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():
-            user.bvn = verify_message["bvn"]
+            verified_bvn = user_det["nvb"] if verify_message == "VERIFIED" else verify_message["bvn"]
+            user.bvn = verified_bvn
             user.bvn_verify_details = verify_message
             user.tier = TIERS_CHOICE[1][0]
             user.is_verified = True
             acc_data = {
                 "phone": user.phone,
                 "email": user.email,
-                "bvn": verify_message["bvn"],
+                "bvn": verified_bvn,
                 "_id": user_det["_id"],
-                "otp": user_det["otpId"]
+                "otp": code
                 }
             account_number, account_name = create_safehaven_account(acc_data)
+            
             if not account_number:
                 return Response(data={"message": account_name}, status=status.HTTP_400_BAD_REQUEST)
             user.account_number = account_number

@@ -123,9 +123,13 @@ def safe_validate(data):
     }
     response = requests.post(url, json=payload, headers=headers)
     resp = response.json()
+
     if response.status_code == 201:
         if "data" in resp.keys():
             return (True, response.json()["data"]["providerResponse"])
+        if resp['statusCode'] == 400:
+            if resp["message"] == 'OTP already verified.':
+                return (True, "VERIFIED")
         if resp['statusCode'] == 403:
             safehaven_auth(a=True)
             response = requests.post(url, json=payload, headers=headers)
@@ -151,11 +155,12 @@ def create_safehaven_account(data):
     payload = {
         "phoneNumber": data["phone"],
         "emailAddress": data["email"],
-        "identityType": "BVN",
+        "identityType": "vID",
         "externalReference": str(uuid.uuid4()),
-        "identityNumber": data["bvn"],
+        # "identityNumber": data["bvn"],
         "identityId": data["_id"],
-        "otp": data["otp"]
+        # "otp": data["otp"],
+        "autoSweep": False,
     }
     response = requests.post(url, json=payload, headers=headers)
     resp = response.json()
