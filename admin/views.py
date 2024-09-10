@@ -21,6 +21,7 @@ from notification.models import Notification
 from django.db.models import Sum, Count, Case, When, Value, BooleanField, Q
 from drf_yasg import openapi
 from utils.pagination import CustomPagination
+from utils.safehaven import safe_name_enquires, send_money
 from datetime import timedelta
 from django.utils.timezone import make_aware
 from .serializers import (
@@ -50,7 +51,9 @@ from .serializers import (
     AdminReferralList,
     AdminSingleInvestment,
     SingleInvestmentInvestors,
-    AdminUserSavingsInterestSerializer
+    AdminUserSavingsInterestSerializer,
+    CheckAccountNameSerializer,
+    SendMoneySerializer
 )
 from transaction.models import Transaction
 import random
@@ -485,19 +488,48 @@ class GetWithdrawals(generics.ListAPIView):
         # search_param = self.request.query_params.get('search', None)
         return queryset
 
-
-class ApproveWithdrawal(views.APIView):
+class CheckAccountName(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
-
     def get(self, request, id):
+        withdraw = get_object_or_404(Withdrawal, pk=id)
+        if withdraw.status != "PENDING":
+            return Response(data={"message": "Withdrawal not in pending state"}, status=status.HTTP_400_BAD_REQUEST)
+        data = {
+            "bankCode" : withdraw.bank_code,
+            "accountNumber": withdraw.account_number
+        }
+        ste, resp = safe_name_enquires(data)
+        if not ste:
+            return Response(data=resp, status = status.HTTP_400_BAD_REQUEST)
+        return Response(data=resp, status=status.HTTP_200_OK)
+
+class ApproveWithdrawal(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    serializer_class = SendMoneySerializer
+
+    def post(self, request, id):
+        serializer  = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
         user = request.user
         withdraw = get_object_or_404(Withdrawal, pk=id)
         if withdraw.status != "PENDING":
             return Response(data={"message": "Withdrawal not in pending state"}, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():
             # TODO call safehaven api
-            withdraw.status = "SUCCESS"
+            session_id = serializer.validated_data["session_id"]
             withdrawal_transaction = withdraw.transaction
+            data = {
+                "nameEnquiryReference": session_id,
+                "beneficiaryBankCode": withdraw.bank_code,
+                "beneficiaryAccountNumber": withdraw.account_number,
+                "amount": withdraw.amount,
+                "narration": f"Withdrawal of {withdraw.amount} from wages finance wallet balance",
+                "paymentReference": str(withdraw.transaction.id) if withdrawal_transaction else generate_random_password()
+            }
+            stt, resp = send_money(data)
+            if not stt:
+                return Response(data= resp, status= status.HTTP_400_BAD_REQUEST)
+            withdraw.status = "SUCCESS"
             if withdrawal_transaction:
                 withdrawal_transaction.status = "SUCCESS"
                 withdrawal_transaction.save()
@@ -510,6 +542,7 @@ class ApproveWithdrawal(views.APIView):
                 text=f"Your withdrawal request of {withdraw.amount} has been approved"
             )
             new_notification.save()
+            return Response(data=resp, status=status.HTTP_200_OK)
         return Response(data={"message": "success"}, status=status.HTTP_200_OK)
 
 
@@ -1428,4 +1461,3 @@ class AdminListReferal(generics.GenericAPIView):
         return Response(data=serializer.data, status=status.HTTP_200_OK)
     def get_queryset(self):
         return User.objects.all()
-    

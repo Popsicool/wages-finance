@@ -43,4 +43,5 @@ urlpatterns = [
     path("transactions/", views.AdminTransactions.as_view(), name="admin_transactions"),
     path("referals/", views.AdminListReferal.as_view(), name="admin_referals"),
     path("overview/", views.AdminOverview.as_view(), name="admin_overview"),
+    path("check_name/<str:id>", views.CheckAccountName.as_view())
 ]

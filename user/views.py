@@ -416,7 +416,7 @@ class WithdrawalView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         amount = serializer.validated_data["amount"]
         account_number = serializer.validated_data["account_number"]
-        if amount < 1000:
+        if amount < 100:
             # TODO ask clarification
             return Response(data={"message": "Amount must be at least N1000"}, status=status.HTTP_401_UNAUTHORIZED)
          

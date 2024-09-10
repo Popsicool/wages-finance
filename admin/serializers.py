@@ -568,7 +568,12 @@ class AdminUserCoporativeBreakdownSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoporativeActivities
         fields = ["created_at", "amount", "balance"]
+class CheckAccountNameSerializer(serializers.Serializer):
+    bankCode = serializers.CharField()
+    accountNumber = serializers.CharField()
 
+class SendMoneySerializer(serializers.Serializer):
+    session_id = serializers.CharField()
 
 class AdminReferralList(serializers.ModelSerializer):
     referral_count = serializers.SerializerMethodField()
