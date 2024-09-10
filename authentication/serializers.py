@@ -88,7 +88,7 @@ class RequestPasswordResetPhoneSerializer(serializers.Serializer):
             raise AuthenticationFailed('invalid credentials, try again')
 
         # generate reset token
-        token = User.objects.make_random_password(length=4, allowed_chars=f'0123456789')
+        token = User.objects.make_random_password(length=6, allowed_chars=f'0123456789')
         token_expiry = timezone.now() + timedelta(minutes=6)
         forget_pass = ForgetPasswordToken.objects.filter(user=user).first()
         if not forget_pass:

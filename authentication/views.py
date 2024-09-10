@@ -82,7 +82,7 @@ class ResendVerificationMail(generics.GenericAPIView):
         with transaction.atomic():
             if verification_obj:
                 # generate email verification token
-                token = User.objects.make_random_password(length=4, allowed_chars=f'0123456789')
+                token = User.objects.make_random_password(length=6, allowed_chars=f'0123456789')
                 token_expiry = timezone.now() + timedelta(minutes=6)
 
                 verification_obj.token = token

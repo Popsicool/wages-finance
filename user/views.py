@@ -602,7 +602,7 @@ class ResetPinToken(views.APIView):
     def get(self, request):
         user = request.user
         token = User.objects.make_random_password(
-            length=4, allowed_chars=f'0123456789')
+            length=6, allowed_chars=f'0123456789')
         token_obj = ForgetPasswordToken.objects.filter(user=user).first()
         token_expiry = timezone.now() + timedelta(minutes=6)
         if not token_obj:
