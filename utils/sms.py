@@ -11,7 +11,7 @@ class SendSMS:
         payload = {
                 "to": info["number"],
                 "from": "Check",
-                "sms": f"Your Wages Finance verification code is {info['token']}. Valid for 10 minutes, one-time use only."
+                "sms": f"Your Wages Finance verification code is {info['token']}. Valid for 10 minutes, one-time use only.",
                 "type": "plain",
                 "channel": "generic",
                 "api_key": API_KEY, 
