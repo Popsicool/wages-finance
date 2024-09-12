@@ -2,11 +2,12 @@ import requests
 from decouple import config
 
 API_KEY = config('TERMII_API_KEY')
+TERMII_BASE_URL = config('TERMII_BASE_URL')
 
 class SendSMS:
     @staticmethod
     def sendVerificationCode(info):
-        url = "https://api.ng.termii.com/api/sms/send"
+        url = TERMII_BASE_URL
         payload = {
                 "to": info["number"],
                 "from": "Check",
