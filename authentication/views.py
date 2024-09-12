@@ -61,7 +61,7 @@ class SignupView(generics.GenericAPIView):
             user = serializer.save()
             # generate email verification token
             token = User.objects.make_random_password(length=6, allowed_chars=f'0123456789')
-            token_expiry = timezone.now() + timedelta(minutes=6)
+            token_expiry = timezone.now() + timedelta(minutes=10)
             EmailVerification.objects.create(user=user, token=token, token_expiry=token_expiry)
             data = {"token": token, 'number': user.phone}
             SendSMS.sendVerificationCode(data)
@@ -82,7 +82,7 @@ class ResendVerificationMail(generics.GenericAPIView):
             if verification_obj:
                 # generate email verification token
                 token = User.objects.make_random_password(length=6, allowed_chars=f'0123456789')
-                token_expiry = timezone.now() + timedelta(minutes=6)
+                token_expiry = timezone.now() + timedelta(minutes=10)
 
                 verification_obj.token = token
                 verification_obj.token_expiry = token_expiry
