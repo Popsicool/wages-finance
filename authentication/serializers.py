@@ -9,6 +9,8 @@ from user.models import User, EmailVerification, ForgetPasswordToken
 import random
 import string
 from utils.email import SendMail
+from django.db.models import Q
+from utils.sms import SendSMS
 import re
 
 
@@ -154,7 +156,7 @@ class PhoneVerificationSerializer(serializers.ModelSerializer):
         phone = attrs.get('phone', '')
         token = attrs.get('token', '')
 
-        user = User.objects.filter(phone=phone).first()
+        user = User.objects.filter(Q(phone=phone) | Q(email=phone)).first()
         if not user:
             raise ParseError('user not found')
         verificationObj = EmailVerification.objects.filter(user=user).first()
@@ -218,8 +220,18 @@ class LoginSerializer(serializers.ModelSerializer):
         user = auth.authenticate(email=email, password=password)
         if not user:
             raise AuthenticationFailed('Invalid credentials, try again')
+        if user.is_staff:
+            raise AuthenticationFailed('Please use the admin panel')
         if not user.is_verified:
-
+            token = User.objects.make_random_password(length=6, allowed_chars=f'0123456789')
+            token_expiry = timezone.now() + timedelta(minutes=10)
+            verification_obj = EmailVerification.objects.filter(user=user).first()
+            verification_obj.token = token
+            verification_obj.is_used = False
+            verification_obj.token_expiry = token_expiry
+            verification_obj.save()
+            data = {"token": token, 'number': user.phone}
+            SendSMS.sendVerificationCode(data)
             raise AuthenticationFailed('please verify your account')
 
         return {

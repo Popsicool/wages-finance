@@ -81,7 +81,7 @@ class UserDashboardSerializer(serializers.ModelSerializer):
         model = User
         fields = ["id","firstname","lastname","pin","email", "wallet", "notifications", "referal_code", "account_name", "account_number", "bank_name", "is_subscribed", 'is_verified', 'bvn_verified', "phone"]
     def get_bank_name(self, obj):
-        return "Safe Heaven Microfinance Bank"
+        return "Safe Haven Microfinance Bank"
     def get_bvn_verified(self, obj):
         return True if obj.bvn else False
     def get_pin(self, obj):

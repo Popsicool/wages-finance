@@ -83,7 +83,6 @@ class ResendVerificationMail(generics.GenericAPIView):
                 # generate email verification token
                 token = User.objects.make_random_password(length=6, allowed_chars=f'0123456789')
                 token_expiry = timezone.now() + timedelta(minutes=10)
-
                 verification_obj.token = token
                 verification_obj.token_expiry = token_expiry
                 verification_obj.save()
@@ -228,7 +227,7 @@ class VerifyBVNView(generics.GenericAPIView):
             verified_bvn = user_det["nvb"] if verify_message == "VERIFIED" else verify_message["bvn"]
             user.bvn = verified_bvn
             user.bvn_verify_details = verify_message
-            user.tier = TIERS_CHOICE[1][0]
+            user.tier = TIERS_CHOICE[2][0]
             user.is_verified = True
             acc_data = {
                 "phone": user.phone,
