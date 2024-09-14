@@ -166,7 +166,11 @@ def create_safehaven_account(data):
         # "identityNumber": data["bvn"],
         "identityId": data["_id"],
         # "otp": data["otp"],
-        "autoSweep": False,
+        "autoSweep": True,
+        "autoSweepDetails":{
+            "schedule": "Instant",
+            "accountNumber": ACCOUNT
+        }
     }
     response = requests.post(url, json=payload, headers=headers)
     resp = response.json()
