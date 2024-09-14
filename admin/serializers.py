@@ -87,7 +87,7 @@ class RequestPasswordResetEmailSerializer(serializers.Serializer):
 
         # generate reset token
         token = User.objects.make_random_password(
-            length=4, allowed_chars=f'0123456789')
+            length=6, allowed_chars=f'0123456789')
         token_expiry = timezone.now() + timedelta(minutes=6)
         forget_pass = ForgetPasswordToken.objects.filter(user=user).first()
         if not forget_pass:
@@ -105,7 +105,7 @@ class RequestPasswordResetEmailSerializer(serializers.Serializer):
 
 
 class EmailCodeVerificationSerializer(serializers.ModelSerializer):
-    token = serializers.CharField(max_length=4, min_length=4, write_only=True)
+    token = serializers.CharField(max_length=6, min_length=6, write_only=True)
     email = serializers.EmailField(write_only=True)
     uuid = serializers.CharField(read_only=True)
 

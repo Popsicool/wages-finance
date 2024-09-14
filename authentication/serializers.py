@@ -81,7 +81,7 @@ class RequestPasswordResetPhoneSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         phone = attrs.get('phone', '')
-        user = User.objects.filter(phone=phone).first()
+        user = User.objects.filter(Q(phone=phone) | Q(email=phone)).first()
 
         if not user:
             # if user account not found, don't throw error
@@ -108,7 +108,7 @@ class RequestPasswordResetPhoneSerializer(serializers.Serializer):
 
 
 class PhoneCodeVerificationSerializer(serializers.ModelSerializer):
-    token = serializers.CharField(max_length=4, min_length=4, write_only=True)
+    token = serializers.CharField(max_length=6, min_length=6, write_only=True)
     phone = serializers.CharField(write_only=True)
     uuid = serializers.CharField(read_only=True)
 
@@ -120,7 +120,7 @@ class PhoneCodeVerificationSerializer(serializers.ModelSerializer):
         phone = attrs.get('phone', '')
         token = attrs.get('token', '')
 
-        user = User.objects.filter(phone=phone).first()
+        user = User.objects.filter(Q(phone=phone) | Q(email=phone)).first()
         if not user:
             raise ParseError('user not found')
         verificationObj = ForgetPasswordToken.objects.filter(user=user).first()
@@ -145,7 +145,7 @@ class PhoneCodeVerificationSerializer(serializers.ModelSerializer):
 
 
 class PhoneVerificationSerializer(serializers.ModelSerializer):
-    token = serializers.CharField(max_length=6, min_length=4, write_only=True)
+    token = serializers.CharField(max_length=6, min_length=6, write_only=True)
     phone = serializers.CharField(write_only=True)
 
     class Meta:
