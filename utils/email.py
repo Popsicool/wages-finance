@@ -22,6 +22,13 @@ class SendMail:
     @staticmethod
     def send_welcome_mail(data):
         SendMail.send_email(data)
+    @staticmethod
+    def send_loan_notification_email(info):
+        data = {}
+        data["subject"] = "Guarantor notification"
+        data["body"] = f'Guarantor notification from {info["user_name"]}'
+        data["user"] = info["email"]
+        SendMail.send_email(data)
     
     @staticmethod
     def send_email_verification_mail(info):

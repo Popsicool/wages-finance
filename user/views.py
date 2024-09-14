@@ -11,6 +11,7 @@ from itertools import chain
 from decimal import Decimal
 from operator import attrgetter
 from notification.models import Notification
+from utils.email import SendMail
 from .serializers import (
     UserActivitiesSerializer,
     UserDashboardSerializer,
@@ -486,9 +487,19 @@ class LoanRequestView(generics.GenericAPIView):
             return Response(data={"message": "You have an outstanding loan"}, status=status.HTTP_403_FORBIDDEN)
         serializer.is_valid(raise_exception=True)
         amount = serializer.validated_data["amount"]
+        g1 = serializer.validated_data["guarantor1"]
+        g2 = serializer.validated_data["guarantor2"]
+        if user == g1 or user == g2:
+            return Response(data={"message": "You can not be your guarantor"}, status=status.HTTP_403_FORBIDDEN)
         if amount > (membership.balance * 2):
             return Response(data={"message": "You are not eligible for this amount"}, status=status.HTTP_403_FORBIDDEN)
         with transaction.atomic():
+            data = {}
+            data["user_name"] = f"{user.firstname} {user.lastname}"
+            data["email"] = g1.email
+            SendMail.send_loan_notification_email(data)
+            data["email"] = g2.email
+            SendMail.send_loan_notification_email(data)
             serializer.save(user=user)
             return Response(data=serializer.data, status=status.HTTP_201_CREATED)
 
