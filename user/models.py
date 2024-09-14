@@ -21,14 +21,16 @@ def upload_to_s3_folder(instance, filename, folder_name='uploads'):
     :param folder_name: Optional folder name where the file will be uploaded in S3.
     :return: A new file path with a timestamp to ensure uniqueness.
     """
-    # Add a timestamp to the filename to ensure uniqueness
-    timestamp = int(time.time())
-    # Extract file extension
     ext = filename.split('.')[-1]
-    # Create a new filename using the original name, timestamp, and extension
-    new_filename = f"{os.path.splitext(filename)[0]}_{timestamp}.{ext}"
+    if folder_name == 'profile_pic':
+        new_filename = f"user-X{instance.id}Y{instance.id}Z{instance.id}AB{instance.id}C-dp"
+    if folder_name == 'investment':
+        new_filename = f"investmentr-A{instance.id}D{instance.id}C{instance.id}QY{instance.id}C-image"
+    else:
+        # Add a timestamp to the filename to ensure uniqueness
+        timestamp = int(time.time())
+        new_filename = f"{os.path.splitext(filename)[0]}_{timestamp}.{ext}"
 
-    # Return the final path, which includes the specified folder and the new filename
     return f"{folder_name}/{new_filename}"
 def upload_to_profile_pic(instance, filename):
     return upload_to_s3_folder(instance, filename, 'profile_pic')
