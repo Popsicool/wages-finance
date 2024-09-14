@@ -6,10 +6,35 @@ from datetime import timedelta
 from datetime import date, datetime
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
+import time
+import os
+from django.utils.timezone import now
 
 # Create your models here.
 
+def upload_to_s3_folder(instance, filename, folder_name='uploads'):
+    """
+    Generates a unique file path for S3 uploads by appending a timestamp to the file name.
+    
+    :param instance: The model instance that the file is being uploaded to.
+    :param filename: The original name of the uploaded file.
+    :param folder_name: Optional folder name where the file will be uploaded in S3.
+    :return: A new file path with a timestamp to ensure uniqueness.
+    """
+    # Add a timestamp to the filename to ensure uniqueness
+    timestamp = int(time.time())
+    # Extract file extension
+    ext = filename.split('.')[-1]
+    # Create a new filename using the original name, timestamp, and extension
+    new_filename = f"{os.path.splitext(filename)[0]}_{timestamp}.{ext}"
 
+    # Return the final path, which includes the specified folder and the new filename
+    return f"{folder_name}/{new_filename}"
+def upload_to_profile_pic(instance, filename):
+    return upload_to_s3_folder(instance, filename, 'profile_pic')
+
+def upload_to_investment_images(instance, filename):
+    return upload_to_s3_folder(instance, filename, 'investment')
 class UserManager(BaseUserManager):
     def _create_user(self, email, password, **extra_fields):
         if not email:
@@ -68,8 +93,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     referal = models.ForeignKey(
         'self', on_delete=models.SET_NULL, null=True, blank=True)
     email = models.EmailField(max_length=255, unique=True, db_index=True)
-    profile_picture = models.ImageField(
-        upload_to="profile_pic/", null=True, blank=True)
+    profile_picture = models.ImageField(upload_to=upload_to_profile_pic, null=True, blank=True)
     phone = models.CharField(
         max_length=255, unique=True, null=True, blank=True)
     is_verified = models.BooleanField(default=False)
@@ -212,7 +236,7 @@ class Withdrawal(models.Model):
 
 class InvestmentPlan(models.Model):
     title = models.CharField(max_length=255)
-    image = models.ImageField(upload_to="investments/")
+    image = models.ImageField(upload_to=upload_to_investment_images)
     start_date = models.DateField()
     end_date = models.DateField()
     is_active = models.BooleanField(default=True)

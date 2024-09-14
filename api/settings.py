@@ -46,8 +46,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_yasg',
     'channels',
-    'cloudinary',
-    'cloudinary_storage',
 
     # created apps
     'authentication',
@@ -205,12 +203,18 @@ STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 MEDIA_URL = 'media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': config("CLOUD_NAME"),
-    'API_KEY': config("API_KEY"),
-    'API_SECRET': config("API_SECRET")
-}
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.RawMediaCloudinaryStorage'
+
+AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME')
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = None
+AWS_S3_VERIFY = True
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+AWS_QUERYSTRING_AUTH = False   # Disable query parameters in the URL
+
 
 
 # Default primary key field type

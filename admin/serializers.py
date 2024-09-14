@@ -220,6 +220,20 @@ class AdminCreateInvestmentSerializer(serializers.ModelSerializer):
         model = InvestmentPlan
         fields = ["title", "image", "start_date", "end_date",
                   "quota", "interest_rate", "unit_share", "is_active"]
+    def validate_image(self, value):
+        """
+        Validate the uploaded image.
+        """
+        if not value.content_type.startswith('image/'):
+            raise serializers.ValidationError("The file type is not an image. Please upload a valid image file.")
+
+        # Ensure file size does not exceed 10 MB
+        max_size_mb = 8
+        if value.size > max_size_mb * 1024 * 1024:  # size in bytes
+            raise serializers.ValidationError(f"The image file size exceeds the {max_size_mb} MB limit.")
+
+        return value
+
 
 class AdminSingleInvestment(serializers.ModelSerializer):
     investor_count = serializers.SerializerMethodField(read_only=True)
