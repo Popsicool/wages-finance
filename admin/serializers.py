@@ -21,6 +21,7 @@ from transaction.models import Transaction
 from django.utils.encoding import smart_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.contrib.auth.models import Group
+import hashlib
 # from user.models import User
 
 
@@ -137,7 +138,10 @@ class EmailCodeVerificationSerializer(serializers.ModelSerializer):
         verificationObj.is_used = True
         verificationObj.token_expiry = timezone.now()
         verificationObj.save()
-        attrs['uid64'] = urlsafe_base64_encode(smart_bytes(user.id))
+        hash_object = hashlib.sha256(smart_bytes(user.id)).digest()
+        combined_value = f"{user.id}-{urlsafe_base64_encode(hash_object)}"
+        attrs['uid64'] = urlsafe_base64_encode(smart_bytes(combined_value))
+
         return attrs
 
 

@@ -6,7 +6,10 @@ class SendMail:
     @staticmethod
     def send_email(data):
         send_email= EmailMessage(subject=data["subject"],body=data["body"], from_email= settings.EMAIL_FROM_USER,to=[data["user"]])
-        send_email.send()
+        try:
+            send_email.send()
+        except BaseException:
+            pass
     
     @staticmethod
     def send_invite_mail(info):

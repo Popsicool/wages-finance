@@ -123,7 +123,7 @@ class RequestPasswordResetEmailView(generics.GenericAPIView):
             SendMail.send_password_reset_mail(serializer.data)
 
         return Response({
-            'message': 'we have sent you a link to reset your password'
+            'message': 'we have sent you your password reset token'
         }, status=status.HTTP_200_OK)
 
 

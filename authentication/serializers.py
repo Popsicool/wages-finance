@@ -12,6 +12,7 @@ from utils.email import SendMail
 from django.db.models import Q
 from utils.sms import SendSMS
 import re
+import hashlib
 
 
 
@@ -140,7 +141,9 @@ class PhoneCodeVerificationSerializer(serializers.ModelSerializer):
         verificationObj.is_used = True
         verificationObj.token_expiry = timezone.now()
         verificationObj.save()
-        attrs['uid64'] = urlsafe_base64_encode(smart_bytes(user.id))
+        hash_object = hashlib.sha256(smart_bytes(user.id)).digest()
+        combined_value = f"{user.id}-{urlsafe_base64_encode(hash_object)}"
+        attrs['uid64'] = urlsafe_base64_encode(smart_bytes(combined_value))
         return attrs
 
 
@@ -260,14 +263,16 @@ class SetNewPasswordSerializer(serializers.Serializer):
 
         # Decode base64 string
         try:
-            id = force_str(urlsafe_base64_decode(uid64))
-        except DjangoUnicodeDecodeError as e:
-            raise AuthenticationFailed('Invalid user', 401)
-        if not id.isdigit():
-            raise AuthenticationFailed('Invalid user', 401)
-        user = User.objects.filter(id=id).first()
-        if not user:
-            raise AuthenticationFailed('Invalid user', 401)
+            decoded_value = force_str(urlsafe_base64_decode(uid64))
+            user_id, provided_hash = decoded_value.split('-', 1)
+            user = User.objects.filter(id=user_id).first()
+            if not user:
+                raise AuthenticationFailed('Invalid user', 401)
+            recreated_hash = urlsafe_base64_encode(hashlib.sha256(smart_bytes(user.id)).digest())
+            if recreated_hash != provided_hash:
+                raise AuthenticationFailed('Invalid user', 401)
+        except (ValueError, DjangoUnicodeDecodeError):
+            raise AuthenticationFailed('Invalid user d', 401)
 
         # Validate password
 
