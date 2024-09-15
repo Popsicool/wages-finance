@@ -103,7 +103,7 @@ class InvestmentPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = InvestmentPlan
         fields = ["id", "title",  "unit_share","quota",
-                  "interest_rate", "end_date", "image", "subscribers"]
+                  "interest_rate", "image", "subscribers", "duration"]
 
     def get_subscribers(self, obj):
         return UserInvestments.objects.filter(investment=obj).distinct('user').count()
@@ -375,8 +375,8 @@ class UserInvestment(serializers.Serializer):
 class UserInvestmentHistory(serializers.ModelSerializer):
     title = serializers.CharField(source="investment.title")
     image = serializers.CharField(source="investment.image.url")
-    start_date = serializers.CharField(source="investment.start_date")
-    end_date = serializers.CharField(source="investment.end_date")
+    start_date = serializers.SerializerMethodField()
+    end_date = serializers.DateField(source="due_date")
     return_on_investment = serializers.SerializerMethodField()
     expected_payout = serializers.SerializerMethodField()
 
@@ -391,6 +391,8 @@ class UserInvestmentHistory(serializers.ModelSerializer):
         rate = obj.investment.interest_rate
         total = (obj.amount * (rate / 100)) + obj.amount
         return total
+    def get_start_date(self, obj):
+        return obj.created_at.date()
 
 
 class VerifyResetPinTokenSerializer(serializers.Serializer):

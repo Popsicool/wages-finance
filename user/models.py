@@ -239,8 +239,9 @@ class Withdrawal(models.Model):
 class InvestmentPlan(models.Model):
     title = models.CharField(max_length=255)
     image = models.ImageField(upload_to=upload_to_investment_images)
-    start_date = models.DateField()
-    end_date = models.DateField()
+    duration = models.IntegerField(default=6)
+    start_date = models.DateField(blank=True, null=True)
+    end_date = models.DateField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     quota = models.IntegerField()
     investors = models.IntegerField(default=0)

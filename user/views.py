@@ -7,6 +7,7 @@ from rest_framework.response import Response
 import random
 from django.utils import timezone
 from datetime import timedelta, date
+from dateutil.relativedelta import relativedelta
 from itertools import chain
 from decimal import Decimal
 from operator import attrgetter
@@ -573,12 +574,13 @@ class UserInvest(generics.GenericAPIView):
                 investment.investors += 1
             user.wallet_balance -= amount
             user.save()
+            due_date = date.today() + relativedelta(months=investment.duration)
             new_user_investment = UserInvestments.objects.create(
                 investment=investment,
                 user=user,
                 shares=unit,
                 amount=amount,
-                due_date=investment.end_date
+                due_date=due_date
             )
             new_activity = Activities.objects.create(
                 title=f"Investment on {investment.title}", amount=amount, user=user)

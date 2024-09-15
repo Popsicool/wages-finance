@@ -209,17 +209,18 @@ class AdminTransactionSerializer(serializers.ModelSerializer):
 class AdminCreateInvestmentSerializer(serializers.ModelSerializer):
     title = serializers.CharField(max_length=255)
     image = serializers.ImageField()
-    start_date = serializers.DateField()
-    end_date = serializers.DateField()
+    start_date = serializers.DateField(required=False)
+    end_date = serializers.DateField(required=False)
     quota = serializers.IntegerField()
     interest_rate = serializers.IntegerField()
+    duration = serializers.ChoiceField(choices = [3, 6, 9, 12])
     unit_share = serializers.IntegerField()
     is_active = serializers.BooleanField(required=False, default=True)
 
     class Meta:
         model = InvestmentPlan
         fields = ["title", "image", "start_date", "end_date",
-                  "quota", "interest_rate", "unit_share", "is_active"]
+                  "quota", "interest_rate", "unit_share", "is_active", "duration"]
     def validate_image(self, value):
         """
         Validate the uploaded image.
@@ -246,11 +247,12 @@ class AdminSingleInvestment(serializers.ModelSerializer):
     quota = serializers.IntegerField(required=False)
     interest_rate = serializers.IntegerField(required=False)
     unit_share = serializers.IntegerField(required=False)
+    duration = serializers.ChoiceField(choices = [3, 6, 9, 12], required=False)
     class Meta:
         model = InvestmentPlan
         fields = ["investor_count", "amount_invested", "days_left",
                   "title", "image", "start_date", "end_date",
-                  "quota", "interest_rate", "unit_share",]
+                  "quota", "interest_rate", "unit_share", "duration"]
     def get_amount_invested(self, obj):
         all_investments = UserInvestments.objects.filter(investment=obj)
         amt = all_investments.aggregate(
@@ -542,7 +544,7 @@ class AdminUserInvestmentSerializer(serializers.ModelSerializer):
         return roi
 
     def get_duration(self, obj):
-        return 6
+        return obj.investment.duration
 
 
 class AdminUserInvestmentSerializerHistory(serializers.ModelSerializer):
