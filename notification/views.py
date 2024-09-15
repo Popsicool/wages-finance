@@ -32,7 +32,7 @@ class Webhook(views.APIView):
                 user=user,
                 amount = amount,
                 source = source,
-                status="PENDING",
+                status="SUCCESS",
                 description = f"N{amount} deposited by {user.firstname}"
             )
             new_transaction.save()
