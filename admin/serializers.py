@@ -214,7 +214,7 @@ class AdminCreateInvestmentSerializer(serializers.ModelSerializer):
     quota = serializers.IntegerField()
     interest_rate = serializers.IntegerField()
     unit_share = serializers.IntegerField()
-    is_active = serializers.BooleanField(required=False)
+    is_active = serializers.BooleanField(required=False, default=True)
 
     class Meta:
         model = InvestmentPlan
