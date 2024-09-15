@@ -580,6 +580,9 @@ class UserInvest(generics.GenericAPIView):
                 amount=amount,
                 due_date=investment.end_date
             )
+            new_activity = Activities.objects.create(
+                title=f"Investment on {investment.title}", amount=amount, user=user)
+            new_activity.save()
             investment.quota -= unit
             new_user_investment.save()
             if investment.quota <= 0:
