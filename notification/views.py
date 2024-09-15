@@ -27,7 +27,7 @@ class Webhook(views.APIView):
             return Response(data={"message":"success"})
         with transaction.atomic():
             user.wallet_balance += amount
-            # new_activity = Activities.objects.create(title="Wallet Deposit", amount=amount, user=user, activity_type="CREDIT")
+            new_activity = Activities.objects.create(title="Wallet Deposit", amount=amount, user=user, activity_type="CREDIT")
             new_transaction = Transaction.objects.create(
                 user=user,
                 amount = amount,
@@ -36,7 +36,7 @@ class Webhook(views.APIView):
                 description = f"N{amount} deposited by {user.firstname}"
             )
             new_transaction.save()
-            # new_activity.save()
+            new_activity.save()
             user.save()
             # data = {
             #     "balance": float(user.wallet_balance),
