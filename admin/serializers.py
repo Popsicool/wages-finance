@@ -262,7 +262,7 @@ class AdminSingleInvestment(serializers.ModelSerializer):
         return UserInvestments.objects.filter(investment=obj).values('user').distinct().count()
     def get_days_left(self, obj):
         today = timezone.now()
-        days = (obj.end_date - today.date()).days
+        days = (obj.end_date - today.date()).days if obj.end_date else None
         return days
 
 class SingleInvestmentInvestors(serializers.ModelSerializer):
@@ -350,7 +350,7 @@ class GetSingleUserSerializer(serializers.ModelSerializer):
         return self.aggregate_field(UserSavings, obj, 'saved')
 
     def get_referal_count(self, obj):
-        return User.objects.filter(referal=obj).count()
+        return obj.user_set.filter(is_subscribed=True).count()
     def get_total_coop_savings(self, obj):
         cop = CoporativeMembership.objects.filter(user=obj).first()
         if not cop:
@@ -569,7 +569,7 @@ class AdminUserSavingsDataSerializers(serializers.ModelSerializer):
     amount_saved = serializers.SerializerMethodField()
     class Meta:
         model = UserSavings
-        fields = ["type", "cycle", 'amount_per_Savings', "target_amount", "amount_saved"]
+        fields = ["id","type", "cycle", 'amount_per_Savings', "target_amount", "amount_saved"]
     def get_amount_per_Savings(self, obj):
         return obj.amount
     def get_amount_saved(self, obj):
