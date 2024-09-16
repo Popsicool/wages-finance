@@ -383,6 +383,7 @@ class UserSavings(models.Model):
 
         # Update the saved amount
         self.saved += amount
+        self.all_time_saved += amount
 
         # Update the balance for all future entries
         future_dates = [
