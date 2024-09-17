@@ -10,7 +10,7 @@ class SendSMS:
         url = TERMII_BASE_URL
         payload = {
                 "to": info["number"],
-                "from": "Check",
+                "from": "N-Alert",
                 "sms": f"Your Wages Finance verification code is {info['token']}. Valid for 10 minutes, one-time use only.",
                 "type": "plain",
                 "channel": "generic",
