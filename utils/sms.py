@@ -13,8 +13,8 @@ class SendSMS:
                 "from": "N-Alert",
                 "sms": f"Your Wages Finance verification code is {info['token']}. Valid for 10 minutes, one-time use only.",
                 "type": "plain",
-                "channel": "generic",
-                "api_key": API_KEY, 
+                "channel": "dnd",
+                "api_key": API_KEY,
             }
         headers = {
         'Content-Type': 'application/json',
