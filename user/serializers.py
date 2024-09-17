@@ -319,6 +319,8 @@ class LoanDetailsSerializer(serializers.ModelSerializer):
     def get_interest(self, obj):
         """Calculate the total interest on the loan based on repayment details."""
         total_interest = 0
+        if not obj.repayment_details:
+            return 0
         for repayment in obj.repayment_details.values():
             payment_amount = repayment['amount']
             principal_payment = obj.amount / obj.duration_in_months

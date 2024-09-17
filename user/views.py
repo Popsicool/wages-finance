@@ -272,6 +272,11 @@ class FundCoporative(generics.GenericAPIView):
             user.wallet_balance -= amount
             user.save()
             coop.balance += amount
+            current_date = date.today()
+            last_day_of_year = date(current_date.year, 12, 31)
+            days_left = (last_day_of_year - current_date).days
+            dividends = days_left * 0.0004658 * amount
+            coop.dividend += int(dividends)
             coop.save()
             new_coop_activity = CoporativeActivities.objects.create(
                 user_coop=coop, amount=amount, balance=coop.balance)
