@@ -37,7 +37,7 @@ class SendMail:
             Dear {info["guarantor_name"]},<br><br>
             We are writing to inform you that {info["user_name"]} has designated you as a guarantor for a loan of ₦{info["amount"]}.<br><br>
             Approve: <a href={frontend_url + "api/v1/user/guarantor/?q=" + info["accept_link"]} style="color:blue; text-decoration:none;">Confirm Guarantorship</a><br><br>
-            Decline: <a href={frontend_url + "api/v1/user/guarantor/?q="+  info["reject_link"]} style="color:blue; text-decoration:none;">Confirm Guarantorship</a>
+            Decline: <a href={frontend_url + "api/v1/user/guarantor/?q="+  info["reject_link"]} style="color:blue; text-decoration:none;">Decline Guarantorship</a>
             '''
         data["body"] = html_content
         data["user"] = info["email"]
