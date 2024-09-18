@@ -20,8 +20,7 @@ class SendMail:
     def send_invite_mail(info):
         data = {}
         data["subject"] = "Admin Invitation"
-        data["body"] = f'Your Login details is\n\nEmail: {
-            info["email"]}\nPassowrd: {info["password"]}'
+        data["body"] = f'Your Login details is\n\nEmail: {info["email"]}\nPassowrd: {info["password"]}'
         data["user"] = info["email"]
         SendMail.send_email(data)
 
