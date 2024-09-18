@@ -527,9 +527,12 @@ class LoanRequestView(generics.GenericAPIView):
         with transaction.atomic():
             data = {}
             data["user_name"] = f"{user.firstname} {user.lastname}"
+            data["guarantor_name"] = f"{g1.firstname} {g1.lastname}"
+            data["amount"] = amount
             data["email"] = g1.email
             SendMail.send_loan_notification_email(data)
             data["email"] = g2.email
+            data["guarantor_name"] = f"{g2.firstname} {g2.lastname}"
             SendMail.send_loan_notification_email(data)
             serializer.save(user=user)
             return Response(data=serializer.data, status=status.HTTP_201_CREATED)

@@ -25,8 +25,8 @@ class SendMail:
     @staticmethod
     def send_loan_notification_email(info):
         data = {}
-        data["subject"] = "Guarantor notification"
-        data["body"] = f'Guarantor notification from {info["user_name"]}'
+        data["subject"] = "Guarantor Notification "
+        data["body"] = f"Dear {info["guarantor_name"]},\n\nWe are writing to inform you that {info["user_name"]} has designated you as a guarantor for a loan of ₦{info["amount"]}.\n\\nApprove: Confirm Guarantorship\n\nDecline: Decline Guarantorship"
         data["user"] = info["email"]
         SendMail.send_email(data)
     
