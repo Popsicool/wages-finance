@@ -318,8 +318,8 @@ class FundSavings(generics.GenericAPIView):
                 return Response(data={"message": "Insufficent amount in wallet"}, status=status.HTTP_403_FORBIDDEN)
             user.wallet_balance -= amount
             interest = days_to_withdrawal * 0.000329 * amount
+            savings.all_time_saved += interest
             savings.interest += interest
-
             user.save()
             savings.mark_payment_as_made(timezone.now(), int(amount))
             savings.save()
@@ -406,7 +406,34 @@ class CancelInvestment(generics.GenericAPIView):
             InvestmentCancel.objects.create(investment=investment_plan, penalty = penalty)
             user.save()
         return Response(data={"message": "success"}, status=status.HTTP_200_OK)
-        
+
+class WithdrawInvestment(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = SetPinSerializer
+    def post(self, request, id):
+        user = request.user
+        investment_plan = get_object_or_404(UserInvestments, pk=id)
+        if investment_plan.user != user:
+            return Response({"message": "Unauthorized access"}, status=status.HTTP_401_UNAUTHORIZED)
+        if investment_plan.status != "MATURED":
+            return Response({"message": "Investment not in matured state"}, status=status.HTTP_401_UNAUTHORIZED)
+        serializer = self.serializer_class(data = request.data)
+        serializer.is_valid(raise_exception=True)
+        pin = serializer.validated_data["pin"]
+        if user.pin != pin:
+            return Response(data={"message": "invalid pin"}, status=status.HTTP_403_FORBIDDEN)
+        refund = investment_plan.amount
+        with transaction.atomic():
+            user.wallet_balance += Decimal(refund)
+            Activities.objects.create(title="Investment withdrawal", amount=refund, user=user, activity_type="CREDIT")
+            investment_plan.status = "WITHDRAWN"
+            # investment = investment_plan.investment
+            #TODO ask for clarification
+            # investment.quota += investment_plan.shares
+            # investment.save()
+            investment_plan.save()
+            user.save()
+        return Response(data={"message": "success"}, status=status.HTTP_200_OK)
          
 
 
@@ -719,6 +746,10 @@ class UserLoanHistory(generics.GenericAPIView):
         serializer = self.serializer_class(loan, many=True)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
+
+
+
+
 class UserRepayLoan(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = RepaymentSerializer
@@ -849,7 +880,6 @@ class LiquidateLoan(generics.GenericAPIView):
             user.save()
 
         return Response(data={"message": "All repayments marked as paid"}, status=status.HTTP_200_OK)
-
 '''
 {"message": 
     {

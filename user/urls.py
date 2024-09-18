@@ -16,6 +16,7 @@ urlpatterns = [
     path('fund_savings/<int:id>/', FundSavings.as_view(), name='fund_savings'),
     path('cancel_savings/<int:id>/', CancelSavings.as_view(), name='cancel_savings'),
     path('cancel_investments/<int:id>/', CancelInvestment.as_view(), name='cancel_investment'),
+    path('withdraw_investments/<int:id>/', WithdrawInvestment.as_view(), name='withdraw_investment'),
     path('fund_coop/', FundCoporative.as_view(), name='fund_cooporative'),
     path('update_dp/', UpdateDPView.as_view(), name='set_pin'),
     path('withdrawal_request/', WithdrawalView.as_view(),

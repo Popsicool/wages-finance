@@ -281,6 +281,7 @@ class AdminOverview(views.APIView):
 
         transactions = Transaction.objects.all()
         all_withdrawals = Withdrawal.objects.filter(status="SUCCESS")
+
         filtered_withdrawal = all_withdrawals.filter(created_at__range=[start_date, end_date])
         total_withdrawal_amount = all_withdrawals.aggregate(Sum('amount'))['amount__sum'] or 0
         filtered_withdrawal_amount = filtered_withdrawal.aggregate(Sum('amount'))['amount__sum'] or 0
@@ -296,15 +297,25 @@ class AdminOverview(views.APIView):
         filtered_sum = filtered_transactions.aggregate(Sum('revenue'))[
             'revenue__sum'] or 0
 
-        # Sum of all transaction amounts
-        savings = transactions.filter(nature="SAVINGS")
-        total_savings = savings.aggregate(Sum('amount'))['amount__sum'] or 0
-
-        # Filtered transactions for the given period
-        filtered_saving = savings.filter(
+        #TODO clarificaation
+        all_savings = SavingsActivities.objects.all()
+        total_savings = all_savings.aggregate(Sum('amount'))['amount__sum'] or 0
+        filtered_saving = all_savings.filter(
             created_at__range=[start_date, end_date])
         filtered_savings_sum = filtered_saving.aggregate(Sum('amount'))[
             'amount__sum'] or 0
+        
+        # # Sum of all transaction amounts
+        # savings = transactions.filter(nature="SAVINGS")
+        # total_savings = savings.aggregate(Sum('amount'))['amount__sum'] or 0
+
+        # # Filtered transactions for the given period
+        # filtered_saving = savings.filter(
+        #     created_at__range=[start_date, end_date])
+        # filtered_savings_sum = filtered_saving.aggregate(Sum('amount'))[
+        #     'amount__sum'] or 0
+
+
         all_users = User.objects.all()
         all_users_count = all_users.count()
         filter_user_count = all_users.filter(
@@ -649,6 +660,8 @@ class AdminSavingsStatsView(views.APIView):
             unique_users_active_savings=Count(
                 'user', distinct=True),
             total_saved_active=Sum('saved'),
+            total_saved_all_time_interest=Sum('all_time_interest'),
+            total_saved_interest=Sum('interest'),
             total_saved_all=Sum('saved'),
             savings_count_per_title=Count('id', distinct=True),
             unique_users_per_title=Count('user', distinct=True),
@@ -677,17 +690,15 @@ class AdminSavingsStatsView(views.APIView):
                 'unique_users': item['unique_users_per_title'],
                 'total_saved': item['total_saved_per_title']
             }
-        #TODO interest paid
-        intered_paid = 0
-        interest_paid_today = 0
+
         data = {
             'unique_users_active_savings': savings_data['unique_users_active_savings'],
             'total_saved_active': savings_data['total_saved_active'],
             'total_saved_all': savings_data['total_saved_all'],
             'cancelled_savings_amount':cancelled_savings_amount,
             'cancelled_penalty':cancelled_penalty,
-            'intered_paid':intered_paid,
-            'interest_paid_today':interest_paid_today,
+            'intered_paid':savings_data['total_saved_all_time_interest'],
+            'interest_paid_today':savings_data['total_saved_interest'],
             'title_data': title_data
         }
 

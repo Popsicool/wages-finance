@@ -192,7 +192,7 @@ class AdminTransactionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Transaction
-        fields = ["id", "firstname", "lastname", "email", "phone",
+        fields = ["id", "firstname", "lastname", "email", "phone","created_at",
                   "amount", "status", "description", "user_id", "type", "withdrawal_details"]
     def get_withdrawal_details(self, obj):
         withdrawal = obj.user_withdrawal_transaction.first()

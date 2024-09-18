@@ -310,6 +310,7 @@ class UserSavings(models.Model):
     type = models.CharField(
         max_length=35, choices=SAVINGS_TYPES, default=SAVINGS_TYPES[0][0])
     amount = models.BigIntegerField()
+    all_time_interest = models.BigIntegerField(default=0)
     interest = models.BigIntegerField(default=0)
     target_amount = models.BigIntegerField(blank=True, null=True)
     all_time_saved = models.BigIntegerField(default=0)
