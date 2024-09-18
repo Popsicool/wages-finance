@@ -55,8 +55,7 @@ class SendMail:
     @staticmethod
     def send_password_reset_mail(info):
         data = {}
-        message = f"Please use the this code to reset your password {
-            info['token']}"
+        message = f"Please use the this code to reset your password {info['token']}"
         data['body'] = message
         data["user"] = info["email"]
         data["subject"] = "Reset password email"
