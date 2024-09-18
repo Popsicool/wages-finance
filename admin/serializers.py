@@ -484,7 +484,6 @@ class AdminLoanList(serializers.ModelSerializer):
     phone = serializers.CharField(source="user.phone")
     email = serializers.CharField(source="user.email")
     guarantors = serializers.SerializerMethodField()
-    # guarantor_2 = serializers.SerializerMethodField()
     profile_picture = serializers.SerializerMethodField()
 
     class Meta:

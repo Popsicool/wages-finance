@@ -52,6 +52,8 @@ from utils.pagination import CustomPagination
 from django.db import transaction
 from utils.sms import SendSMS
 from datetime import datetime
+from django.utils.encoding import smart_bytes, smart_str
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 # Create your views here.
 
 
@@ -525,16 +527,24 @@ class LoanRequestView(generics.GenericAPIView):
         if amount > (membership.balance * 2):
             return Response(data={"message": "You are not eligible for this amount"}, status=status.HTTP_403_FORBIDDEN)
         with transaction.atomic():
+            loan_obj = serializer.save(user=user)
+            accept_link1 = urlsafe_base64_encode(smart_bytes(f"{loan_obj.id}-{1}-{urlsafe_base64_encode(smart_bytes(g1.email))}"))
+            reject_link1 = urlsafe_base64_encode(smart_bytes(f"{loan_obj.id}-{0}-{urlsafe_base64_encode(smart_bytes(g1.email))}"))
+            accept_link2 = urlsafe_base64_encode(smart_bytes(f"{loan_obj.id}-{1}-{urlsafe_base64_encode(smart_bytes(g2.email))}"))
+            reject_link2 = urlsafe_base64_encode(smart_bytes(f"{loan_obj.id}-{0}-{urlsafe_base64_encode(smart_bytes(g2.email))}"))
             data = {}
+            data["amount"] = amount
             data["user_name"] = f"{user.firstname} {user.lastname}"
             data["guarantor_name"] = f"{g1.firstname} {g1.lastname}"
-            data["amount"] = amount
             data["email"] = g1.email
+            data["accept_link"]= accept_link1
+            data["reject_link"]= reject_link1
             SendMail.send_loan_notification_email(data)
-            data["email"] = g2.email
             data["guarantor_name"] = f"{g2.firstname} {g2.lastname}"
+            data["email"] = g2.email
+            data["accept_link"]= accept_link2
+            data["reject_link"]= reject_link2
             SendMail.send_loan_notification_email(data)
-            serializer.save(user=user)
             return Response(data=serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -883,19 +893,59 @@ class LiquidateLoan(generics.GenericAPIView):
             user.save()
 
         return Response(data={"message": "All repayments marked as paid"}, status=status.HTTP_200_OK)
-'''
-{"message": 
-    {
-        "balance": 37300.0,
-        "activity": 
-            {
-                "title": "N300 Deposit",
-                "amount": 300.0,
-                "activity_type": "CREDIT",
-                "created_at": "2024-08-02T14:11:16.112158+00:00"
-            }
-        }
-}
 
 
-'''
+
+class GuarantorResponse(views.APIView):
+    def get(self, request):
+        q_param = request.query_params.get('q', None)
+        if not q_param:
+            return Response(data={"message":"invalid request"}, status=status.HTTP_400_BAD_REQUEST)
+        decoded_bytes = urlsafe_base64_decode(q_param)
+        decoded_str = smart_str(decoded_bytes)
+        parts = decoded_str.split('-', 3)
+        loan_id = parts[0]
+        req_status = parts[1]
+        if req_status not in ["1", "0"]:
+            return Response(data={"message":"invalid request"}, status=status.HTTP_400_BAD_REQUEST)
+        email_part = parts[2]
+        email = smart_str(urlsafe_base64_decode(email_part))
+        loan = get_object_or_404(Loan, pk=loan_id)
+        if loan.status != "PENDING":
+            return Response(data={"message":"invalid request"}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            if loan.guarantor1.email == email:
+                if req_status == "1":
+                    loan.guarantor1_agreed = "APPROVED"
+                    new_notification = Notification.objects.create(
+                        user=loan.user,
+                        title="Guarantor request Approved",
+                        text=f"{loan.guarantor1.firstname} {loan.guarantor1.lastname} has accepted to be your Guarantor"
+                    )
+                else:
+                    loan.guarantor1_agreed = "REJECTED"
+                    new_notification = Notification.objects.create(
+                        user=loan.user,
+                        title="Guarantor request Declined",
+                        text=f"{loan.guarantor1.firstname} {loan.guarantor1.lastname} has declined to be your Guarantor"
+                    )
+            elif loan.guarantor2.email == email:
+                if req_status == "1":
+                    loan.guarantor2_agreed = "APPROVED"
+                    new_notification = Notification.objects.create(
+                        user=loan.user,
+                        title="Guarantor request Approved",
+                        text=f"{loan.guarantor2.firstname} {loan.guarantor2.lastname} has accepted to be your Guarantor"
+                    )
+                else:
+                    loan.guarantor2_agreed = "REJECTED"
+                    new_notification = Notification.objects.create(
+                        user=loan.user,
+                        title="Guarantor request Declined",
+                        text=f"{loan.guarantor2.firstname} {loan.guarantor2.lastname} has declined to be your Guarantor"
+                    )
+            else:
+                return Response(data={"message":"invalid request"}, status=status.HTTP_400_BAD_REQUEST)
+            new_notification.save()
+            loan.save()
+        return Response(data={"msg":"success"})

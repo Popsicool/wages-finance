@@ -484,6 +484,11 @@ LOAN_STATUS = [
     ("OVER-DUE", "Loan overdued"),
 ]
 
+GUARANTOR_STATUS =  [
+    ("PENDING", "Waiting for guarantor approval"),
+    ("APPROVED", "Accepted by guarantor"),
+    ("REJECTED", "Rejected by Guarantor"),
+]
 
 class Loan(models.Model):
     user = models.ForeignKey(
@@ -492,8 +497,10 @@ class Loan(models.Model):
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name="guaranter_1")
     guarantor2 = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name="guaranter_2")
-    guarantor1_agreed = models.BooleanField(default=False)
-    guarantor2_agreed = models.BooleanField(default=False)
+    guarantor1_agreed = models.CharField(
+        choices=GUARANTOR_STATUS, default=GUARANTOR_STATUS[0][0], max_length=10)
+    guarantor2_agreed = models.CharField(
+        choices=GUARANTOR_STATUS, default=GUARANTOR_STATUS[0][0], max_length=10)
     amount = models.PositiveBigIntegerField()
     amount_repayed = models.PositiveBigIntegerField(default=0)
     balance = models.PositiveBigIntegerField(default=0)

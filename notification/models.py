@@ -20,3 +20,5 @@ class Notification(models.Model):
     status = models.CharField(choices=NOTIFICATION_STATUS, default=NOTIFICATION_STATUS[0][0])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    def __str__(self):
+        return f"{self.title} - {self.user.firstname} {self.user.lastname} - {self.status}"

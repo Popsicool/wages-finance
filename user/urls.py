@@ -36,6 +36,8 @@ urlpatterns = [
          name='verify_reset_pin'),
     path('change_pin/', ChangePinView.as_view(),
          name='verify_reset_pin'),
+    path('guarantor/', GuarantorResponse.as_view(),
+         name='verify_reset_pin'),
     path('banks/', Get_Banks.as_view(),
          name='get_banks'),
     path('test_socket/<id>/', test_socket,
