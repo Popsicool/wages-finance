@@ -554,7 +554,8 @@ class Loan(models.Model):
 
             repayment_details[due_date.strftime("%d/%m/%Y")] = {
                 "paid_status": False,
-                "amount": round(amount_due)
+                "amount": round(amount_due),
+                'date': due_date.strftime("%d/%m/%Y")
             }
 
             total_amount -= monthly_payment
