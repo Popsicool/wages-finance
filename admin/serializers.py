@@ -485,11 +485,13 @@ class AdminLoanList(serializers.ModelSerializer):
     email = serializers.CharField(source="user.email")
     guarantors = serializers.SerializerMethodField()
     profile_picture = serializers.SerializerMethodField()
+    total_repayment = serializers.SerializerMethodField()
+    due_date = serializers.SerializerMethodField()
 
     class Meta:
         model = Loan
-        fields = ["id", "user_id", "firstname", "lastname", "amount",
-                  "date_requested", "phone", "email", "profile_picture",
+        fields = ["id", "user_id", "firstname", "lastname", "amount","total_repayment",
+                  "date_requested", "phone", "email", "profile_picture","due_date",
                   "duration_in_months", "interest_rate",
                   "date_approved", "status", "guarantors"]
 
@@ -517,6 +519,10 @@ class AdminLoanList(serializers.ModelSerializer):
 
     def get_profile_picture(self, obj):
         return obj.user.profile_picture.url if obj.user.profile_picture else None
+    def get_total_repayment(self, obj):
+        return obj.balance + obj.amount_repayed
+    def get_due_date(self, obj):
+        return obj.get_due_date()
 
 
 class CustomReferal(serializers.Serializer):

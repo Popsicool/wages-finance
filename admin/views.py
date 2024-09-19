@@ -237,9 +237,14 @@ class AdminTransactions(generics.GenericAPIView):
     serializer_class = AdminTransactionSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     pagination_class = CustomPagination
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["user__id", "user__firstname", "user__lastname", "user__email"]
 
     def get(self, request):
+        search = request.GET.get("search")
         queryset = self.get_queryset()
+        if search:
+            queryset = queryset.filter(Q(user__firstname__icontains = search) | Q(user__lastname__icontains = search) | Q(user__email__icontains = search))
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.serializer_class(page, many=True)
@@ -289,14 +294,12 @@ class AdminOverview(views.APIView):
 
 
         # Sum of all transaction amounts
-        total_sum = transactions.aggregate(Sum('revenue'))['revenue__sum'] or 0
+        total_sum = transactions.filter(status="SUCCESS", type="WALLET-CREDIT").aggregate(Sum('amount'))['amount__sum'] or 0
 
         # Filtered transactions for the given period
         filtered_transactions = transactions.filter(
-            created_at__range=[start_date, end_date])
-        filtered_sum = filtered_transactions.aggregate(Sum('revenue'))[
-            'revenue__sum'] or 0
-
+            created_at__range=[start_date, end_date], status="SUCCESS", type="WALLET-CREDIT")
+        filtered_sum = filtered_transactions.aggregate(Sum('amount'))['amount__sum'] or 0
         #TODO clarificaation
         all_savings = SavingsActivities.objects.all()
         total_savings = all_savings.aggregate(Sum('amount'))['amount__sum'] or 0
@@ -390,13 +393,25 @@ class GetTeamMembers(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     serializer_class = GetAdminMembersSerializer
 
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('status', openapi.IN_QUERY, description='Filter by account status',
+                              type=openapi.TYPE_STRING, enum=['active', 'inactive'], required=False),
+        ]
+    )
     def get(self, request):
         serializer = self.serializer_class(self.get_queryset(), many=True)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
     def get_queryset(self):
-        return User.objects.filter(
+        status  = self.request.query_params.get("status").strip().lower()
+        all_admins = User.objects.filter(
             role="ADMIN").order_by('-created_at')
+        if status == "inactive":
+            all_admins = all_admins.filter(is_active=False)
+        elif status == "active":
+            all_admins = all_admins.filter(is_active=True)
+        return all_admins
 
 
 class GetSingleUserView(generics.GenericAPIView):
@@ -710,9 +725,14 @@ class SavingsType(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
     pagination_class = CustomPagination
 
-    def get(self, request, name):
+    def get(self, request, id):
+        if id not in [1, 2, 3, 4, 5]:
+            return Response(data={"message": "invalid option"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        option_types = {1: "BIRTHDAY", 2: "CAR-PURCHASE", 3: "VACATION", 4: "GADGET-PURCHASE", 5: "MISCELLANEOUS"}
+        user_option = option_types.get(id)
         queryset = UserSavings.objects.filter(
-            type=name.strip().upper(), withdrawal_date__isnull = False).order_by("-start_date")
+            type=user_option, withdrawal_date__isnull = False).order_by("-start_date")
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.serializer_class(page, many=True)
@@ -738,7 +758,11 @@ class AdminSingleInvestmentInvestors(generics.ListAPIView):
     filter_backends = [filters.SearchFilter]
     search_fields = ["user__id", "user__firstname", "user__lastname", "user__email"]
     def get(self, request, id):
+        search = request.GET.get("search")
         queryset = self.get_queryset()
+        if search:
+            queryset = queryset.filter(Q(user__firstname__icontains = search) | Q(user__lastname__icontains = search) | Q(user__email__icontains=search))
+
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.serializer_class(page, many=True)
@@ -1062,6 +1086,8 @@ class AdminLoanOverview(generics.GenericAPIView):
         if filter_param:
             filter_param = filter_param.strip().upper()
             queryset = queryset.filter(status=filter_param)
+        else:
+            queryset = queryset.exclude(status__in=["OVERDUE", "REPAYED"])
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.serializer_class(page, many=True)
@@ -1087,6 +1113,7 @@ class AdminAcceptLoan(views.APIView):
                 type="LOAN-UPDATE"
             )
             new_notification.save()
+            Activities.objects.create(title="LOAN APPROVAL", amount=loan.amount, user=user)
             loan.date_approved = datetime.today().date()
             user.save()
             loan.save()
@@ -1454,9 +1481,10 @@ class AdminListReferal(generics.GenericAPIView):
 
         # Filter users who have referred at least one person with is_subscribed=True
         users_with_referals = queryset.annotate(
-            referral_count=Count('user__is_subscribed')
+            referral_count=Count('user__id', filter=Q(user__is_subscribed=True))
         ).filter(referral_count__gte=1)
         page = self.paginate_queryset(users_with_referals)
+
 
         # Paginate the filtered users
         if page is not None:
@@ -1471,4 +1499,4 @@ class AdminListReferal(generics.GenericAPIView):
         serializer = self.serializer_class(users_with_referals, many=True)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
     def get_queryset(self):
-        return User.objects.all()
+        return User.objects.all().order_by("-created_at")
