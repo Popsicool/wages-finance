@@ -958,6 +958,7 @@ class GuarantorResponse(views.APIView):
 #     all_loans = Loan.objects.all()
 #     for l in all_loans:
 #         l.populate_repayment_details()
+#         l.balance = l.amount + l.calculate_total_interest()
 #         l.save()
 #     data["amount"] = 5000
 #     data["duration"] = 6
@@ -967,4 +968,4 @@ class GuarantorResponse(views.APIView):
 #     data["accept_link"]= "https://fb.com"
 #     data["reject_link"]= "https://fb.com"
 #     SendMail.send_loan_notification_email(data)
-    return JsonResponse({"msg":"success"})
+    # return JsonResponse({"msg":"success"})
