@@ -549,7 +549,9 @@ class Loan(models.Model):
 
         for i in range(1, self.duration_in_months + 1):
             due_date = self.date_approved + relativedelta(months=i)
-            interest = (total_amount * (self.interest_rate / 100)) / self.duration_in_months
+
+            # interest = (total_amount * (self.interest_rate / 100)) / self.duration_in_months
+            interest = 0.02 * total_amount
             amount_due = monthly_payment + interest
 
             repayment_details[due_date.strftime("%d/%m/%Y")] = {

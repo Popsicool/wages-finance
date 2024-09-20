@@ -55,7 +55,7 @@ class UserActivitiesSerializer(serializers.Serializer):
                 "title": instance.savings.type,
                 "amount": instance.amount,
                 "description": f"{instance.activity_type.lower()} of N{instance.amount} ",
-                "activity_type": "DEBIT" if instance.activity_type == "WITHDRAWAL" else "CREDIT",
+                "activity_type": "CREDIT" if instance.activity_type == "WITHDRAWAL" else "DEBIT",
                 "created_at": instance.created_at,
                 "source": "savings_activities"
             }
@@ -64,7 +64,7 @@ class UserActivitiesSerializer(serializers.Serializer):
                 "title": f"Cooporative {instance.activity_type.lower()}",
                 "amount": instance.amount,
                 "description": f"{instance.activity_type.lower()} of N{instance.amount} ",
-                "activity_type": "DEBIT" if instance.activity_type == "WITHDRAWAL" else "CREDIT",
+                "activity_type": "CREDIT" if instance.activity_type == "WITHDRAWAL" else "DEBIT",
                 "created_at": instance.created_at,
                 "source": "coporative_activities"
             }
