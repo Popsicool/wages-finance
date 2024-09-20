@@ -2,7 +2,7 @@ from django.utils import timezone
 from datetime import timedelta, datetime
 from rest_framework import serializers
 from django.contrib import auth
-from rest_framework.exceptions import AuthenticationFailed, ParseError
+from rest_framework.exceptions import AuthenticationFailed, ParseError, MethodNotAllowed
 from django.utils.encoding import force_str, smart_bytes, DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from user.models import User, EmailVerification, ForgetPasswordToken
@@ -235,7 +235,7 @@ class LoginSerializer(serializers.ModelSerializer):
             verification_obj.save()
             data = {"token": token, 'number': user.phone}
             SendSMS.sendVerificationCode(data)
-            raise AuthenticationFailed('please verify your account')
+            raise MethodNotAllowed('please verify your account')
 
         return {
             'id': user.id,
