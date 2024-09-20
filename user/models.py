@@ -270,6 +270,7 @@ class UserInvestments(models.Model):
     status = models.CharField(
         max_length=20, choices=USER_INVESTMENT_STATUS, default=USER_INVESTMENT_STATUS[0][0])
     amount = models.IntegerField()
+    interest = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     due_date = models.DateField()
 

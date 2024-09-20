@@ -424,7 +424,7 @@ class WithdrawInvestment(generics.GenericAPIView):
         pin = serializer.validated_data["pin"]
         if user.pin != pin:
             return Response(data={"message": "invalid pin"}, status=status.HTTP_403_FORBIDDEN)
-        refund = investment_plan.amount
+        refund = investment_plan.amount + investment_plan.interest
         with transaction.atomic():
             user.wallet_balance += Decimal(refund)
             Activities.objects.create(title="Investment withdrawal", amount=refund, user=user, activity_type="CREDIT")

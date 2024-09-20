@@ -31,4 +31,6 @@ class Command(BaseCommand):
         investment_plans = UserInvestments.objects.filter(status="ACTIVE", due_date__lt=today)
         for plan in investment_plans:
             plan.status = "MATURED"
+            int_rate = plan.investment.interest_rate * 0.01 * plan.amount
+            plan.interest = int_rate
             plan.save()
