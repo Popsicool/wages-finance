@@ -534,6 +534,7 @@ class LoanRequestView(generics.GenericAPIView):
             reject_link2 = urlsafe_base64_encode(smart_bytes(f"{loan_obj.id}-{0}-{urlsafe_base64_encode(smart_bytes(g2.email))}"))
             data = {}
             data["amount"] = amount
+            data["duration"] = loan_obj.duration_in_months
             data["user_name"] = f"{user.firstname} {user.lastname}"
             data["guarantor_name"] = f"{g1.firstname} {g1.lastname}"
             data["email"] = g1.email
@@ -949,3 +950,17 @@ class GuarantorResponse(views.APIView):
             new_notification.save()
             loan.save()
         return Response(data={"msg":"success"})
+
+
+# from django.http import JsonResponse
+# def test_email(request):
+#     data = {}
+#     data["amount"] = 5000
+#     data["duration"] = 6
+#     data["user_name"] = "Akinola Samson"
+#     data["guarantor_name"] = "Oluwa Popsicool"
+#     data["email"] = "akinolasamson1234@gmail.com"
+#     data["accept_link"]= "https://fb.com"
+#     data["reject_link"]= "https://fb.com"
+#     SendMail.send_loan_notification_email(data)
+#     return JsonResponse({"msg":"success"})

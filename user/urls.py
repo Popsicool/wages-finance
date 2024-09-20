@@ -42,4 +42,6 @@ urlpatterns = [
          name='get_banks'),
     path('test_socket/<id>/', test_socket,
          name='verify_reset_pin'),
+#     path('test_mail/', test_email,
+#          name='verify_reset_pin'),
 ]

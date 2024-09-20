@@ -1,6 +1,8 @@
-from django.core.mail import EmailMessage
+from django.core.mail import EmailMessage, EmailMultiAlternatives
 from django.conf import settings
+from django.template.loader import render_to_string
 from decouple import config
+import os
 
 
 class SendMail:
@@ -30,18 +32,24 @@ class SendMail:
 
     @staticmethod
     def send_loan_notification_email(info):
-        data = {}
         frontend_url = config("FRONTEND_URL")
-        data["subject"] = "Guarantor Notification"
-        html_content = f'''
-            Dear {info["guarantor_name"]},<br><br>
-            We are writing to inform you that {info["user_name"]} has designated you as a guarantor for a loan of ₦{info["amount"]}.<br><br>
-            Approve: <a href={frontend_url + "api/v1/user/guarantor/?q=" + info["accept_link"]} style="color:blue; text-decoration:none;">Confirm Guarantorship</a><br><br>
-            Decline: <a href={frontend_url + "api/v1/user/guarantor/?q="+  info["reject_link"]} style="color:blue; text-decoration:none;">Decline Guarantorship</a>
-            '''
-        data["body"] = html_content
-        data["user"] = info["email"]
+        html_content = render_to_string('mail.html', {
+            "guarantor_name":info["guarantor_name"],
+            "user_name":info["user_name"],
+            "amount": info["amount"],
+            "frontend_url":frontend_url,
+            "accept_link":info["accept_link"],
+            "reject_link":info["reject_link"],
+            "duration":info["duration"]
+            })
+        data = {
+            "subject": "Guarantor Notification",
+            "body": html_content,
+            "user": info["email"]
+        }
         SendMail.send_email(data, html=True)
+
+        # SendMail.send_email(data, html=True)
 
     @staticmethod
     def send_email_verification_mail(info):
