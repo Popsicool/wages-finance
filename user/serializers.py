@@ -76,16 +76,19 @@ class UserDashboardSerializer(serializers.ModelSerializer):
     bank_name = serializers.SerializerMethodField()
     bvn_verified = serializers.SerializerMethodField()
     pin = serializers.SerializerMethodField()
+    profile_picture = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["id","firstname","lastname","pin","email", "wallet", "notifications", "referal_code", "account_name", "account_number", "bank_name", "is_subscribed", 'is_verified', 'bvn_verified', "phone"]
+        fields = ["id","firstname","lastname","pin","email", "wallet", "notifications", "referal_code", "account_name", "account_number", "bank_name", "is_subscribed", 'is_verified', 'bvn_verified', "phone", "profile_picture"]
     def get_bank_name(self, obj):
         return "Safe Haven Microfinance Bank"
     def get_bvn_verified(self, obj):
         return True if obj.bvn else False
     def get_pin(self, obj):
         return True if obj.pin else False
+    def get_profile_picture(self, obj):
+        return obj.profile_picture.url if obj.profile_picture else None
 
     def get_wallet(self, obj):
         return obj.wallet_balance
