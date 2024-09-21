@@ -24,13 +24,13 @@ class Command(BaseCommand):
 
     def check_expired_investment_plans(self):
         today = timezone.now().date()
-        investment_plans = InvestmentPlan.objects.filter(is_active=True, end_date__lt=today)
+        investment_plans = InvestmentPlan.objects.filter(is_active=True, end_date__lte=today)
         for plan in investment_plans:
             plan.is_active = False
             plan.save()
     def check_expired_user_investments(self):
         today = timezone.now().date()
-        investment_plans = UserInvestments.objects.filter(status="ACTIVE", due_date__lt=today)
+        investment_plans = UserInvestments.objects.filter(status="ACTIVE", due_date__lte=today)
         for plan in investment_plans:
             plan.status = "MATURED"
             int_rate = plan.investment.interest_rate * 0.01 * plan.amount
@@ -38,7 +38,7 @@ class Command(BaseCommand):
             plan.save()
     def check_matured_user_savings(self):
         today = timezone.now().date()
-        all_user_savings =  UserSavings.objects.filter(withdrawal_date__lt=today, is_active=True)
+        all_user_savings =  UserSavings.objects.filter(withdrawal_date__lte=today, is_active=True)
         for user_savings in all_user_savings:
             refund = user_savings.saved + user_savings.interest
             with transaction.atomic():
