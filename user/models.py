@@ -315,6 +315,7 @@ class UserSavings(models.Model):
     interest = models.BigIntegerField(default=0)
     target_amount = models.BigIntegerField(blank=True, null=True)
     all_time_saved = models.BigIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
     saved = models.BigIntegerField(default=0)
     start_date = models.DateField(blank=True, null=True)
     withdrawal_date = models.DateField(blank=True, null=True)

@@ -219,9 +219,9 @@ class NewSavingsView(generics.GenericAPIView):
                 new_savings.save()
             else:
                 if not savings_filter.start_date:
-                    n_save = serializer.save(start_date=date.today(), cycle=savings_filter.cycle + 1)
+                    n_save = serializer.save(start_date=date.today(), cycle=savings_filter.cycle + 1, is_active=True)
                 else:
-                    n_save = serializer.save(cycle=savings_filter.cycle + 1)
+                    n_save = serializer.save(cycle=savings_filter.cycle + 1, is_active=True)
                 n_save.calculate_payment_details()
 
             return Response(data=serializer.data, status=status.HTTP_201_CREATED)
@@ -369,10 +369,11 @@ class CancelSavings(generics.GenericAPIView):
             savings.goal_met = False
             savings.payment_details = None
             savings.interest = 0
+            savings.is_active=False
             savings.time = None
             savings.day_week = None
             savings.day_month = None
-            Activities.objects.create(title="Savings Payment", amount=refund, user=user, activity_type="CREDIT")
+            Activities.objects.create(title="Savings Canceled", amount=refund, user=user, activity_type="CREDIT")
             SavingsCancel.objects.create(savings=savings,penalty=penalty, amount=amt)
             savings.save()
             user.save()
@@ -955,17 +956,17 @@ class GuarantorResponse(views.APIView):
 # from django.http import JsonResponse
 # def test_email(request):
 #     data = {}
-#     all_loans = Loan.objects.all()
-#     for l in all_loans:
-#         l.populate_repayment_details()
-#         l.balance = l.amount + l.calculate_total_interest()
-#         l.save()
-#     data["amount"] = 5000
-#     data["duration"] = 6
-#     data["user_name"] = "Akinola Samson"
-#     data["guarantor_name"] = "Oluwa Popsicool"
-#     data["email"] = "akinolasamson1234@gmail.com"
-#     data["accept_link"]= "https://fb.com"
-#     data["reject_link"]= "https://fb.com"
-#     SendMail.send_loan_notification_email(data)
+    # all_loans = Loan.objects.all()
+    # for l in all_loans:
+    #     l.populate_repayment_details()
+    #     l.balance = l.amount + l.calculate_total_interest()
+    #     l.save()
+    # data["amount"] = 5000
+    # data["duration"] = 6
+    # data["user_name"] = "Akinola Samson"
+    # data["guarantor_name"] = "Oluwa Popsicool"
+    # data["email"] = "akinolasamson1234@gmail.com"
+    # data["accept_link"]= "https://fb.com"
+    # data["reject_link"]= "https://fb.com"
+    # SendMail.send_loan_notification_email(data)
     # return JsonResponse({"msg":"success"})
