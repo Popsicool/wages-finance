@@ -60,6 +60,11 @@ class Command(BaseCommand):
                     if user.wallet_balance >= remaining_amount:
                         payment_datetime = timezone.now()
                         saving.mark_payment_as_made(payment_datetime, remaining_amount)
+                        ttday = datetime.now().date()
+                        days_to_withdrawal = (saving.withdrawal_date - ttday).days
+                        interest = days_to_withdrawal * 0.000329 * remaining_amount
+                        saving.all_time_saved += interest
+                        saving.interest += interest
                         user.wallet_balance -= remaining_amount
                         user.save()
 
