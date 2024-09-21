@@ -26,6 +26,8 @@ urlpatterns = [
     path('suspend/<id>', views.SuspendAccount.as_view(), name='suspend_account'),
     path('unsuspend/<id>', views.UnSuspendAccount.as_view(), name='suspend_account'),
     path('withdrawal/', views.GetWithdrawals.as_view(), name='new_investment'),
+    path('outsanding_dividends/', views.AdminOutstandingDividendsView.as_view(), name='outstanding_dividens'),
+    path('pay_dividends/', views.AdminPayOutstandingDividenView.as_view(), name='pay_divideds'),
     path('active_coporative_members/', views.GetCooperativeUsersView.as_view(), name='active_coporative_members'),
     path('coporative_stats/', views.AdminCoporateSavingsDashboard.as_view(), name='admin_coporative_dashboard'),
     path('savings_stats/', views.AdminSavingsStatsView.as_view(), name='admin_savings_dashboard'),
@@ -43,5 +45,6 @@ urlpatterns = [
     path("transactions/", views.AdminTransactions.as_view(), name="admin_transactions"),
     path("referals/", views.AdminListReferal.as_view(), name="admin_referals"),
     path("overview/", views.AdminOverview.as_view(), name="admin_overview"),
-    path("check_name/<str:id>", views.CheckAccountName.as_view())
+    path("check_name/<str:id>", views.CheckAccountName.as_view()),
+    path("dividends/<str:id>", views.AdminUserEarnedDividend.as_view()),
 ]

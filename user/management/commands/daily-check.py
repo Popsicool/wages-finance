@@ -1,9 +1,10 @@
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 # from django.contrib.auth.models import User
-from user.models import Loan, InvestmentPlan, UserInvestments, UserSavings, Activities
+from user.models import Loan, InvestmentPlan, UserInvestments, UserSavings, Activities, CoporativeMembership
 from django.utils import timezone
 from django.db import transaction
+import calendar
 
 class Command(BaseCommand):
     help = 'Check for overdue loans and expired investment plans and update their status'
@@ -13,6 +14,7 @@ class Command(BaseCommand):
         self.check_expired_investment_plans()
         self.check_expired_user_investments()
         self.check_matured_user_savings()
+        self.update_monthly_dividend()
         self.stdout.write(self.style.SUCCESS('Successfully updated overdue loans, expired user plan and expired investment plans'))
 
     def check_overdue_loans(self):
@@ -60,9 +62,32 @@ class Command(BaseCommand):
                 user_savings.save()
                 Activities.objects.create(title="Savings Payout", amount=refund, user=user, activity_type="CREDIT")
 
-            # new_savings_activity = SavingsActivities.objects.create(savings=user_savings, amount=refund,
-            #                                                         balance = 0, interest=0,
-            #                                                         user=user, activity_type="WITHDRAWAL")
-            # new_savings_activity.save()
+    def update_monthly_dividend(self):
+        today = timezone.now()
+        last_day = calendar.monthrange(today.year, today.month)[1]
+        
+        # Check if today is the last day of the month
+        if today.day == last_day:
+            active_memberships = CoporativeMembership.objects.filter(is_active=True)
+            
+            for membership in active_memberships:
+                closing_balance = membership.balance
+                dividend = round(0.02 * closing_balance)  # 2% of the balance
+                
+                # Prepare the entry for monthly_dividend
+                month_year = today.strftime('%B %Y')
+                entry = {
+                    "date": today.strftime('%Y-%m-%d'),
+                    "closing_balance": closing_balance,
+                    "dividend": dividend,
+                    "status": False
+                }
+                
+                # Update the monthly_dividend field
+                monthly_dividend = membership.monthly_dividend or {}  # if it's empty
+                monthly_dividend[month_year] = entry
+                
+                membership.monthly_dividend = monthly_dividend
+                membership.save()
 
 

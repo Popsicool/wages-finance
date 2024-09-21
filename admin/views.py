@@ -28,6 +28,8 @@ from .serializers import (
     AdminLoginSerializer,
     AdminInviteSerializer,
     AdminCreateInvestmentSerializer,
+    AdminOutsandingDividendsSerializer,
+    AdminPayOutstandingDividendsSerializer,
     GetUsersSerializers,
     GetWithdrawalSerializers,
     RejectionReason,
@@ -657,14 +659,78 @@ class AdminCoporateSavingsDashboard(views.APIView):
         total_balance = coporative_members.aggregate(
             total=Sum('balance'))['total'] or 0
         active_members_count = coporative_members.count()
+        current_year = str(datetime.now().year)
+        total_dividends = 0
+        for member in coporative_members:
+            if member.monthly_dividend:
+                for key, entry in member.monthly_dividend.items():
+                    # Extract the year from the key (assuming it's in "Month Year" format)
+                    year = key.split()[-1]
+                    if year == current_year:
+                        total_dividends += entry.get('dividend', 0)
 
         resp = {
             "total": total_balance,
-            "count": active_members_count
+            "count": active_members_count,
+            "total_dividend": total_dividends
         }
 
         return Response(resp, status=status.HTTP_200_OK)
 
+class AdminOutstandingDividendsView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    serializer_class = AdminOutsandingDividendsSerializer
+    pagination_class = CustomPagination
+    def get(self, request):
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.serializer_class(queryset, many=True)
+    def get_queryset(self):
+        coporative_members = CoporativeMembership.objects.filter(is_active=True)
+        members_with_false_status = [
+            member for member in coporative_members
+            if any(entry.get('status') == False for entry in member.monthly_dividend.values() if member.monthly_dividend)
+        ]
+        return members_with_false_status
+class AdminPayOutstandingDividenView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    serializer_class = AdminPayOutstandingDividendsSerializer
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        indices = serializer.validated_data["indices"]
+        outstanding_users = CoporativeMembership.objects.filter(id__in=indices)
+        for cop in outstanding_users:
+            monthly_dividends = cop.monthly_dividend
+            amt = 0
+            if not monthly_dividends:
+                continue
+            for key, value in monthly_dividends.items():
+                if value["status"]:
+                    continue
+                amt += value["dividend"]
+                value["status"] = True
+                monthly_dividends[key] = value
+            with transaction.atomic():
+                cop.monthly_dividend = monthly_dividends
+                user = cop.user
+                user.wallet_balance += amt
+                user.save()
+                cop.save()
+                CoporativeActivities.objects.create(amount=amt, balance=cop.balance, user_coop=cop, activity_type="DIVIDENDS")
+        return Response(data={"message": "success"}, status=status.HTTP_200_OK)
+
+
+
+
+
+
+            
+        print(outstanding_users)
+        return Response(data={"message": "success"}, status=status.HTTP_200_OK)
 
 class AdminSavingsStatsView(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
@@ -1141,47 +1207,48 @@ class AdminRejectLoan(views.APIView):
         return Response({"message": "success"}, status=status.HTTP_200_OK)
 
 
-class AdminUserCoporativeBreakdown(generics.GenericAPIView):
-    serializer_class = AdminSingleUserCoporativeDetails
-    pagination_class = CustomPagination
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+# class AdminUserCoporativeBreakdown(generics.GenericAPIView):
+#     serializer_class = AdminSingleUserCoporativeDetails
+#     pagination_class = CustomPagination
+#     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
 
-    @swagger_auto_schema(
-        manual_parameters=[
-            openapi.Parameter('start_date', openapi.IN_QUERY,
-                              description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)',
-                              type=openapi.TYPE_STRING, required=False),
-        ]
-    )
-    def get(self, request, id):
-        start_date = self.request.query_params.get('start_date', None)
-        end_date = self.request.query_params.get('end_date', None)
-        if start_date and not is_valid_date_format(start_date):
-            return Response(data={'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
-        if end_date and not is_valid_date_format(end_date):
-            return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
-        queryset = self.get_queryset()
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.serializer_class(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = self.serializer_class(queryset, many=True)
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+#     @swagger_auto_schema(
+#         manual_parameters=[
+#             openapi.Parameter('start_date', openapi.IN_QUERY,
+#                               description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+#             openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)',
+#                               type=openapi.TYPE_STRING, required=False),
+#         ]
+#     )
+#     def get(self, request, id):
+#         start_date = self.request.query_params.get('start_date', None)
+#         end_date = self.request.query_params.get('end_date', None)
+#         if start_date and not is_valid_date_format(start_date):
+#             return Response(data={'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+#         if end_date and not is_valid_date_format(end_date):
+#             return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+#         queryset = self.get_queryset()
+#         page = self.paginate_queryset(queryset)
+#         if page is not None:
+#             serializer = self.serializer_class(page, many=True)
+#             return self.get_paginated_response(serializer.data)
+#         serializer = self.serializer_class(queryset, many=True)
+#         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-    def get_queryset(self):
-        id = self.kwargs['id']
-        user = get_object_or_404(User, pk=id)
-        start_date = self.request.query_params.get('start_date', None)
-        end_date = self.request.query_params.get('end_date', None)
-        today = now()
-        start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
-        start_date = start_date.replace(hour=0, minute=0, second=0)
-        if end_date:
-            end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
-        end_date = end_date or today
-        end_date += timedelta(days=1)
-        return CoporativeActivities.objects.filter(user_coop__user=user, created_at__range=[start_date, end_date]).select_related('user_coop').order_by('-created_at')
+#     def get_queryset(self):
+#         id = self.kwargs['id']
+#         user = get_object_or_404(User, pk=id)
+#         start_date = self.request.query_params.get('start_date', None)
+#         end_date = self.request.query_params.get('end_date', None)
+#         today = now()
+#         start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d')) if start_date else today
+#         start_date = start_date.replace(hour=0, minute=0, second=0)
+#         if end_date:
+#             end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
+#         end_date = end_date or today
+#         end_date += timedelta(days=1)
+#         return CoporativeActivities.objects.filter(user_coop__user=user, created_at__range=[start_date, end_date]).select_related('user_coop').order_by('-created_at')
+
 
 class AdminUserInvestmentBreakdown(generics.GenericAPIView):
     serializer_class = AdminUserInvestmentSerializer
@@ -1440,8 +1507,41 @@ class AdminUserCoporativeBreakdown(generics.GenericAPIView):
         end_date += timedelta(days=1)
         queryset = CoporativeActivities.objects.filter(user_coop__user = user, created_at__range=[start_date, end_date]).order_by('-created_at')
         return queryset
-
-
+class AdminUserEarnedDividend(views.APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('year', openapi.IN_QUERY,
+                              description='Uear eg 2019', type=openapi.TYPE_STRING, required=False)
+        ]
+    )
+    def get(self, request, id):
+        user = get_object_or_404(User, pk=id)
+        year = request.GET.get("year", None) or str(datetime.now().year)
+        coporative = CoporativeMembership.objects.filter(is_active=True, user=user).first()
+        if not coporative:
+            return Response({"message": "not a coporative member"}, status=status.HTTP_400_BAD_REQUEST)
+        monthly_dividend = coporative.monthly_dividend
+        if not monthly_dividend:
+            return Response(data={"total_dividend": 0 ,"dividends": []}, status=status.HTTP_200_OK)
+        sorted_monthly_dividend = self.sort_dividends_by_date(monthly_dividend)
+        all_dividends = sorted_monthly_dividend.values()
+        all_keys = sorted_monthly_dividend.keys()
+        total_pending_dividends = 0
+        all_dividends = [sorted_monthly_dividend[k] for k in all_keys if k.endswith(year)]
+        for dvd in all_dividends:
+            total_pending_dividends += dvd["dividend"]
+        return Response(data={"total_dividend": total_pending_dividends ,"dividends": all_dividends}, status=status.HTTP_200_OK)
+    def sort_dividends_by_date(self, dividends):
+        # Sort the dictionary by converting the keys (e.g., "September 2024") to datetime objects
+        sorted_dividends = dict(
+            sorted(
+                dividends.items(),
+                key=lambda item: datetime.strptime(item[0], '%B %Y')
+            )
+        )
+        return sorted_dividends
+        
 class AdminListReferal(generics.GenericAPIView):
     # pagination_class = []
     serializer_class = AdminReferralList

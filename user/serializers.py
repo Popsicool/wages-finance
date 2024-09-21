@@ -69,6 +69,10 @@ class UserActivitiesSerializer(serializers.Serializer):
                 "source": "coporative_activities"
             }
         return super().to_representation(instance)
+class UserDividendsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CoporativeMembership
+        fields = ["monthly_dividend"]
 
 class UserDashboardSerializer(serializers.ModelSerializer):
     wallet = serializers.SerializerMethodField()
@@ -80,7 +84,7 @@ class UserDashboardSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id","firstname","lastname","pin","email", "wallet", "notifications", "referal_code", "account_name", "account_number", "bank_name", "is_subscribed", 'is_verified', 'bvn_verified', "phone", "profile_picture"]
+        fields = ["id","firstname","lastname","pin","email", "wallet", "notifications", "referal_code", "account_name", "account_number", "bank_name", "is_subscribed", 'is_verified', 'bvn_verified', "phone", "profile_picture", "wages_point"]
     def get_bank_name(self, obj):
         return "Safe Haven Microfinance Bank"
     def get_bvn_verified(self, obj):
@@ -255,7 +259,7 @@ class CoporativeDashboardSerializer(serializers.ModelSerializer):
     activities = serializers.SerializerMethodField()
     class Meta:
         model = CoporativeMembership
-        fields = ["balance", "date_joined", "membership_id", "activities"]
+        fields = ["balance", "date_joined", "membership_id", "activities", "monthly_dividend"]
     def get_activities(self, obj):
         all_cooporative_activities = CoporativeActivities.objects.filter(user_coop=obj).order_by("-created_at")
         activities_list = [

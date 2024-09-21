@@ -534,6 +534,27 @@ class AdminSingleUserCoporativeDetails(serializers.ModelSerializer):
         model = CoporativeActivities
         fields = ["created_at", "amount", "balance"]
 
+class AdminOutsandingDividendsSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    amount = serializers.SerializerMethodField()
+    class Meta:
+        model  = CoporativeMembership
+        fields = ["id", "name", "amount"]
+    def get_name(self, obj):
+        return f"{obj.user.firstname} {obj.user.lastname}"
+    def get_amount(self, obj):
+        monthly_dividend = obj.monthly_dividend
+        total = 0
+        for div in monthly_dividend.values():
+            if not div["status"]:
+                total += div["dividend"]
+        return total
+    
+class AdminPayOutstandingDividendsSerializer(serializers.Serializer):
+    indices = serializers.ListField(
+        child=serializers.IntegerField(), 
+        min_length=1
+    )
 
 class AdminUserInvestmentSerializer(serializers.ModelSerializer):
     plan = serializers.CharField(source="investment.title")

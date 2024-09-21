@@ -20,6 +20,7 @@ from .serializers import (
     SetPinSerializer,
     UpdateDP,
     NewSavingsSerializer,
+    UserDividendsSerializer,
     UserSavingsSerializers,
     AmountPinSerializer,
     CoporativeDashboardSerializer,
@@ -854,6 +855,22 @@ class Get_Banks(views.APIView):
     def get(self, request):
         return Response(data=BANK_LISTS, status=status.HTTP_200_OK)
 
+# class UserDividendsView(generics.GenericAPIView):
+#     permission_classes = [permissions.IsAuthenticated]
+#     serializer_class =  UserDividendsSerializer
+#     def get(self, request):
+#         user = request.user
+#         if not user.is_subscribed:
+#             return Response({"message": "Not an active coporative member"}, status=status.HTTP_401_UNAUTHORIZED)
+#         queryset = self.get_queryset()
+#         if not queryset:
+#             return Response({"message": "Not an active coporative member"}, status=status.HTTP_401_UNAUTHORIZED)
+#         serializer = self.serializer_class(queryset)
+#         return Response(data=serializer.data, status=status.HTTP_200_OK)
+#     def get_queryset(self):
+#         user = self.request.user
+#         queryset = CoporativeMembership.objects.filter(user=user).first()
+#         return queryset
 
 class LiquidateLoan(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]

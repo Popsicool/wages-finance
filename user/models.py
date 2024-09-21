@@ -449,6 +449,7 @@ class CoporativeMembership(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     membership_id = models.CharField(max_length=20, unique=True)
     dividend = models.IntegerField(default=0)
+    monthly_dividend = models.JSONField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.user.lastname} - {self.membership_id} - {self.balance} -{self.date_joined}"
