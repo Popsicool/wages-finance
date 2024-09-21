@@ -308,8 +308,6 @@ class FundSavings(generics.GenericAPIView):
             return Response(data={"message": "Set savings option first"}, status=status.HTTP_400_BAD_REQUEST)
         serializer.is_valid(raise_exception=True)
         today = datetime.now().date()
-        days_to_withdrawal = (savings.withdrawal_date - today).days
-
         with transaction.atomic():
             pin = serializer.validated_data["pin"]
             amount = serializer.validated_data["amount"]
@@ -320,9 +318,6 @@ class FundSavings(generics.GenericAPIView):
             if user.wallet_balance < amount:
                 return Response(data={"message": "Insufficent amount in wallet"}, status=status.HTTP_403_FORBIDDEN)
             user.wallet_balance -= amount
-            interest = days_to_withdrawal * 0.000329 * amount
-            savings.all_time_saved += interest
-            savings.interest += interest
             user.save()
             savings.mark_payment_as_made(timezone.now(), int(amount))
             savings.save()

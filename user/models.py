@@ -383,8 +383,12 @@ class UserSavings(models.Model):
                 'paid_status': True,
                 'balance': self.saved + amount,
             }
-
+        ttday = datetime.now().date()
+        days_to_withdrawal = (self.withdrawal_date - ttday).days
+        interest = days_to_withdrawal * 0.000329 * amount
         # Update the saved amount
+        self.all_time_interest += interest
+        self.interest += interest
         self.saved += amount
         self.all_time_saved += amount
 
