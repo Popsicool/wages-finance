@@ -62,13 +62,17 @@ class Command(BaseCommand):
                         saving.mark_payment_as_made(payment_datetime, remaining_amount)
                         user.wallet_balance -= remaining_amount
                         user.save()
+                        ttday = datetime.now().date()
+                        days_to_withdrawal = (saving.withdrawal_date - ttday).days
+                        interest = days_to_withdrawal * 0.000329 * remaining_amount
 
                         # Log the savings activity
                         new_savings_activity = SavingsActivities.objects.create(
                             savings=saving,
                             amount=remaining_amount,
                             balance=saving.saved,
-                            user=user
+                            user=user,
+                            interest=interest
                         )
                         new_savings_activity.save()
 

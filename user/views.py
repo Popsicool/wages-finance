@@ -321,6 +321,9 @@ class FundSavings(generics.GenericAPIView):
             user.save()
             savings.mark_payment_as_made(timezone.now(), int(amount))
             savings.save()
+            ttday = datetime.now().date()
+            days_to_withdrawal = (savings.withdrawal_date - ttday).days
+            interest = days_to_withdrawal * 0.000329 * amount
             new_savings_activity = SavingsActivities.objects.create(savings=savings, amount=amount,
                                                                     balance = savings.saved, interest=interest,
                                                                     user=user)
