@@ -422,7 +422,7 @@ class SavingsCancel(models.Model):
     amount = models.BigIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     def __str__(self):
-        return f"{self.investment.investment.title} -- {self.investment.user.firstname} -- {self.penalty_fee} -- {self.created_at}"
+        return f"{self.savings.type} -- {self.savings.user.firstname} -- {self.penalty} -- {self.created_at}"
 
 
 class SavingsActivities(models.Model):
