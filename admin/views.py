@@ -922,12 +922,12 @@ class AdminInvestmentDashboards(views.APIView):
 
         # Calculate the total interest for the latest investments
         total_interest = latest_investments.annotate(
-            interest=ExpressionWrapper(
+            sum_interest=ExpressionWrapper(
                 F('amount') * F('investment__interest_rate') / 100,
                 output_field=DecimalField()
             )
         ).aggregate(
-            total_interest=Sum('interest')
+            total_interest=Sum('sum_interest')
         )['total_interest'] or 0
 
         # Calculate the total amount from the latest filtered investments
