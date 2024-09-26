@@ -195,6 +195,8 @@ class SetBvnView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         # call safehaven endpoint
         numn = serializer.validated_data["bvn"]
+        if User.objects.filter(bvn=numn).exists():
+            return Response({"message": "User with this bvn already exist"}, status=status.HTTP_400_BAD_REQUEST)
         data = {'type':"BVN", "number": numn}
         safe_status, resp = safe_initiate(data)
         if safe_status:
