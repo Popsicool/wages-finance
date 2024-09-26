@@ -541,7 +541,7 @@ class Loan(models.Model):
 
     def is_overdue(self):
         due_date = self.get_due_date()
-        if due_date and date.today() > due_date:
+        if due_date and date.today() >= due_date:
             return True
         return False
 
