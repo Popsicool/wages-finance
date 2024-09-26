@@ -1179,7 +1179,7 @@ class AdminAcceptLoan(views.APIView):
                 type="LOAN-UPDATE"
             )
             new_notification.save()
-            Activities.objects.create(title="LOAN APPROVAL", amount=loan.amount, user=user)
+            Activities.objects.create(title="LOAN APPROVAL", amount=loan.amount, user=user, activity_type="CREDIT")
             loan.date_approved = datetime.today().date()
             user.save()
             loan.save()
