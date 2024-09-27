@@ -1,5 +1,5 @@
 from rest_framework import (permissions, generics, views, filters)
-from authentication.permissions import IsAdministrator
+from authentication.permissions import IsAdministrator, IsAccountant, IsCustomerSupport, IsLoanManager, IsLoanOfficerOrAccountant, IsAdminStaff
 from rest_framework.response import Response
 from user.models import (User,
                          Withdrawal,
@@ -237,7 +237,7 @@ class AdminUpdateTeamView(generics.GenericAPIView):
 
 class AdminTransactions(generics.GenericAPIView):
     serializer_class = AdminTransactionSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAccountant]
     pagination_class = CustomPagination
     filter_backends = [filters.SearchFilter]
     search_fields = ["user__id", "user__firstname", "user__lastname", "user__email"]
@@ -259,7 +259,7 @@ class AdminTransactions(generics.GenericAPIView):
 
 
 class AdminOverview(views.APIView):
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAccountant]
 
     @swagger_auto_schema(
         manual_parameters=[
@@ -418,7 +418,7 @@ class GetTeamMembers(views.APIView):
 
 class GetSingleUserView(generics.GenericAPIView):
     serializer_class = GetSingleUserSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAdminStaff]
 
     def get(self, request, id):
         user = get_object_or_404(User, pk=id)
@@ -426,7 +426,7 @@ class GetSingleUserView(generics.GenericAPIView):
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 class GetUsersView(generics.ListAPIView):
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAdminStaff]
     serializer_class = GetUsersSerializers
     filter_backends = [filters.SearchFilter]
     search_fields = ["id", "firstname", "lastname", "email"]
@@ -462,7 +462,7 @@ class GetUsersView(generics.ListAPIView):
 
 
 class GetWithdrawals(generics.ListAPIView):
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAccountant]
     serializer_class = GetWithdrawalSerializers
 
     @swagger_auto_schema(
@@ -517,7 +517,7 @@ class GetWithdrawals(generics.ListAPIView):
         return queryset
 
 class CheckAccountName(views.APIView):
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAccountant]
     def get(self, request, id):
         withdraw = get_object_or_404(Withdrawal, pk=id)
         if withdraw.status != "PENDING":
@@ -532,7 +532,7 @@ class CheckAccountName(views.APIView):
         return Response(data=resp, status=status.HTTP_200_OK)
 
 class ApproveWithdrawal(generics.GenericAPIView):
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAccountant]
     serializer_class = SendMoneySerializer
 
     def post(self, request, id):
@@ -543,7 +543,6 @@ class ApproveWithdrawal(generics.GenericAPIView):
         if withdraw.status != "PENDING":
             return Response(data={"message": "Withdrawal not in pending state"}, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():
-            # TODO call safehaven api
             session_id = serializer.validated_data["session_id"]
             withdrawal_transaction = withdraw.transaction
             data = {
@@ -575,7 +574,7 @@ class ApproveWithdrawal(generics.GenericAPIView):
 
 
 class RejectWithdrawal(generics.GenericAPIView):
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAccountant]
     serializer_class = RejectionReason
 
     def post(self, request, id):
@@ -597,7 +596,6 @@ class RejectWithdrawal(generics.GenericAPIView):
             withdraw.admin_user = user
             withdraw_user = withdraw.user
             withdraw_user.wallet_balance += withdraw.amount
-            # TODO add a notification
             new_notification = Notification.objects.create(
                 user=withdraw_user,
                 title="Withdrawal request rejected",
@@ -651,7 +649,7 @@ class GetCooperativeUsersView(generics.ListAPIView):
 
 
 class AdminCoporateSavingsDashboard(views.APIView):
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAccountant]
 
     def get(self, request):
         coporative_members = CoporativeMembership.objects.filter(
@@ -733,7 +731,7 @@ class AdminPayOutstandingDividenView(generics.GenericAPIView):
         return Response(data={"message": "success"}, status=status.HTTP_200_OK)
 
 class AdminSavingsStatsView(views.APIView):
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAccountant]
 
     def get(self, request):
         # Aggregating data
@@ -788,7 +786,7 @@ class AdminSavingsStatsView(views.APIView):
 
 class SavingsType(generics.GenericAPIView):
     serializer_class = SavingsTypeSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAccountant]
     pagination_class = CustomPagination
 
     def get(self, request, id):
@@ -808,7 +806,7 @@ class SavingsType(generics.GenericAPIView):
 
 
 class AdminSingleSavings(views.APIView):
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAccountant]
     serializer_class = SingleSavingsSerializer
 
     def get(self, request, id):
@@ -862,7 +860,7 @@ class AdminSingleInvestment(generics.GenericAPIView):
         return queryset
 
 class AdminInvestmentDashboards(views.APIView):
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAccountant]
 
     @swagger_auto_schema(
         manual_parameters=[
@@ -1024,7 +1022,7 @@ class AdminInvestmentDashboards(views.APIView):
 
 
 class AdminLoanDashboard(views.APIView):
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsLoanManager]
 
     @swagger_auto_schema(
         manual_parameters=[
@@ -1137,7 +1135,7 @@ class AdminLoanDashboard(views.APIView):
 
 class AdminLoanOverview(generics.GenericAPIView):
     serializer_class = AdminLoanList
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsLoanManager]
     pagination_class = CustomPagination
 
     @swagger_auto_schema(
@@ -1163,7 +1161,7 @@ class AdminLoanOverview(generics.GenericAPIView):
 
 
 class AdminAcceptLoan(views.APIView):
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsLoanManager]
 
     def get(self, request, id):
         loan = get_object_or_404(Loan, pk=id)
@@ -1187,7 +1185,7 @@ class AdminAcceptLoan(views.APIView):
 
 
 class AdminRejectLoan(views.APIView):
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsLoanManager]
 
     def get(self, request, id):
         loan = get_object_or_404(Loan, pk=id)
@@ -1253,7 +1251,7 @@ class AdminRejectLoan(views.APIView):
 class AdminUserInvestmentBreakdown(generics.GenericAPIView):
     serializer_class = AdminUserInvestmentSerializer
     pagination_class = CustomPagination
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator] #Todo later
     def get(self, request, id):
         queryset = self.get_queryset()
         page = self.paginate_queryset(queryset)
@@ -1288,7 +1286,7 @@ class AdminUserInvestmentBreakdown(generics.GenericAPIView):
 
 class AdminUserInvestmentHistory(generics.GenericAPIView):
     serializer_class = AdminUserInvestmentSerializerHistory
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator] #Todo later
     @swagger_auto_schema(
         manual_parameters=[
             openapi.Parameter('start_date', openapi.IN_QUERY,
@@ -1354,7 +1352,7 @@ class AdminUserInvestmentHistory(generics.GenericAPIView):
 
 class AdminUserSavingsData(generics.GenericAPIView):
     serializer_class = AdminUserSavingsDataSerializers
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator] #Todo later
     def get(self, request, id):
         queryset = self.get_queryset()
         total_cycle = 0
@@ -1387,7 +1385,7 @@ class AdminUserSavingsData(generics.GenericAPIView):
 
 class AdminUserSavingsInterest(generics.GenericAPIView):
     serializer_class = AdminUserSavingsInterestSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAccountant] #Todo later
     @swagger_auto_schema(
         manual_parameters=[
             openapi.Parameter('start_date', openapi.IN_QUERY,
@@ -1469,7 +1467,7 @@ class AdminUserSavingsBreakdown(generics.GenericAPIView):
 
 class AdminUserCoporativeBreakdown(generics.GenericAPIView):
     serializer_class = AdminUserCoporativeBreakdownSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator] #Todo later
     @swagger_auto_schema(
         manual_parameters=[
             openapi.Parameter('start_date', openapi.IN_QUERY,
@@ -1508,7 +1506,7 @@ class AdminUserCoporativeBreakdown(generics.GenericAPIView):
         queryset = CoporativeActivities.objects.filter(user_coop__user = user, created_at__range=[start_date, end_date]).order_by('-created_at')
         return queryset
 class AdminUserEarnedDividend(views.APIView):
-    permission_classes = [permissions.IsAuthenticated, IsAdministrator]
+    permission_classes = [permissions.IsAuthenticated, IsAdministrator] #Todo later
     @swagger_auto_schema(
         manual_parameters=[
             openapi.Parameter('year', openapi.IN_QUERY,
