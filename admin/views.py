@@ -721,15 +721,6 @@ class AdminPayOutstandingDividenView(generics.GenericAPIView):
                 CoporativeActivities.objects.create(amount=amt, balance=cop.balance, user_coop=cop, activity_type="DIVIDENDS")
         return Response(data={"message": "success"}, status=status.HTTP_200_OK)
 
-
-
-
-
-
-            
-        print(outstanding_users)
-        return Response(data={"message": "success"}, status=status.HTTP_200_OK)
-
 class AdminSavingsStatsView(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAccountant]
 

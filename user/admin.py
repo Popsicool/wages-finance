@@ -10,7 +10,8 @@ from .models import (User, EmailVerification,
                      ForgetPasswordToken,
                      SavingsActivities,
                      CoporativeActivities,
-                     Withdrawal
+                     Withdrawal,
+                     DataAndAirtimeActivity
                      )
 # Register your models here.
 # admin.site.register(User)
@@ -35,3 +36,4 @@ admin.site.register(Loan)
 admin.site.register(SavingsActivities)
 admin.site.register(CoporativeActivities)
 admin.site.register(Withdrawal)
+admin.site.register(DataAndAirtimeActivity)

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Activities,
+    DataAndAirtimeActivity,
     User,
     InvestmentPlan,
     UserInvestments,
@@ -58,6 +59,15 @@ class UserActivitiesSerializer(serializers.Serializer):
                 "activity_type": "CREDIT" if instance.activity_type == "WITHDRAWAL" else "DEBIT",
                 "created_at": instance.created_at,
                 "source": "savings_activities"
+            }
+        elif isinstance(instance, DataAndAirtimeActivity):
+            return {
+                "title": "DATA PURCHASE",
+                "amount": instance.amount,
+                "description": instance.package,
+                "activity_type": "DEBIT",
+                "created_at": instance.created_at,
+                "source": "data_activities"
             }
         elif isinstance(instance, CoporativeActivities):
             return {
@@ -403,7 +413,30 @@ class UserInvestmentHistory(serializers.ModelSerializer):
     def get_start_date(self, obj):
         return obj.created_at.date()
 
+class BuyDataSerializer(serializers.Serializer):
+    pin = serializers.IntegerField(min_value=1000, max_value=9999)
+    plan = serializers.IntegerField(min_value=1, max_value=93)
+    phone = serializers.CharField()
 
+
+class BuyAirtimeSerializer(serializers.Serializer):
+    pin = serializers.IntegerField(min_value=1000, max_value=9999)
+    amount = serializers.IntegerField(min_value=50)
+    phone = serializers.CharField()
+    network = serializers.ChoiceField(choices=[("MTN", "MTN"), ("GLO", "GLO"), ("AIRTEL", "AIRTEL"), ("9MOBILE", "9MOBILE")])
+
+
+
+class DataHistorySerializer(serializers.ModelSerializer):
+    title = serializers.SerializerMethodField()
+    activity_type = serializers.SerializerMethodField()
+    class Meta:
+        model = DataAndAirtimeActivity
+        fields = ["title", "activity_type", "amount", "created_at", "network", "package", "number"]
+    def get_title(self, obj):
+        return "DATA PURCHASE"
+    def get_activity_type(self, obj):
+        return "DEBIT"
 class VerifyResetPinTokenSerializer(serializers.Serializer):
     token = serializers.CharField()
 class ChangePinSerializer(serializers.Serializer):

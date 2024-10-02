@@ -474,7 +474,26 @@ class CoporativeActivities(models.Model):
     def __str__(self):
         return f"{self.amount} by {self.user_coop.user.firstname} on {self.created_at}"
 
-
+DATA_AND_AIRTIME_TYPE_CHOICE = [
+    ("DATA", "Data purchase"),
+    ("AIRTIME", "Airtime purchase")
+]
+class DataAndAirtimeActivity(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE,related_name='user_data')
+    refrence_code = models.CharField(max_length=50, editable=False)
+    amount = models.IntegerField()
+    balance = models.IntegerField()
+    network = models.CharField(max_length=10)
+    number = models.CharField(max_length=20)
+    package = models.CharField(max_length=100, null=True, blank=True)
+    type = models.CharField(
+        max_length=10,
+        choices=DATA_AND_AIRTIME_TYPE_CHOICE,
+        default=DATA_AND_AIRTIME_TYPE_CHOICE[0][0]
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        return f"{self.type} purchase of {self.amount} by {self.user.firstname} {self.user.lastname} on {self.created_at}"
 class SafeHavenAPIDetails(models.Model):
     acc_token = models.TextField(max_length=255)
     client_id = models.CharField(max_length=255)

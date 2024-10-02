@@ -5,7 +5,70 @@ from user.models import User, Activities
 from django.db import transaction
 from user.consumers import send_socket_user_notification
 from transaction.models import Transaction
+from notification.models import Notification
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from notification.serializers import NotificationSerializer, MarkAsRead
+from utils.pagination import CustomPagination
+from django.db.models import Case, When, F
 # Create your views here.
+
+
+
+class UserNotifications(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = NotificationSerializer
+    pagination_class = CustomPagination
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('status', openapi.IN_QUERY, description='Filter by status',
+                              type=openapi.TYPE_STRING, enum=['read', 'unread'], required=False),
+        ]
+    )
+    def get(self, request):
+        filter_status = self.request.query_params.get('status', None)
+        if filter_status:
+            filter_status = filter_status.strip().upper()
+            if filter_status not in ["READ", "UNREAD"]:
+                filter_status = None
+        queryset =  self.get_queryset()
+        if filter_status:
+            queryset = queryset.filter(status=filter_status)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        user = self.request.user
+        UNREAD = 'UNREAD'
+        READ = 'READ'
+        queryset = Notification.objects.filter(user=user).order_by(
+            Case(
+                When(status=UNREAD, then=1),
+                When(status=READ, then=0),
+                default=0,
+            ).desc(),
+            '-created_at'
+        )
+        return queryset
+
+class MarkAsRead(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class =  MarkAsRead
+    def post(self, request):
+        user = request.user
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        mark_notifications = serializer.validated_data["notification_ids"]
+        all_notifications = Notification.objects.filter(id__in=mark_notifications, status="UNREAD", user=user)
+        for notification in all_notifications:
+            notification.status = "READ"
+            notification.save()
+        return Response({"message": "success"}, status=status.HTTP_200_OK)
+            
+
 
 class Webhook(views.APIView):
     # permission_classes = [permissions.IsAuthenticated]

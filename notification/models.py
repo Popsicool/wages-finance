@@ -6,7 +6,8 @@ NOTIFICATION_TYPE = [
     ("EARNING", "User got earnings"),
     ("DIVIDEND", "User receive dividend on investment"),
     ("LOAN-UPDATE", "Update on loan request"),
-    ("USER-TARGET", "Notification for user on their savings target")
+    ("USER-TARGET", "Notification for user on their savings target"),
+    ("OTHERS", "Other form of notification")
 ]
 NOTIFICATION_STATUS = [
     ("UNREAD", "Unread"),

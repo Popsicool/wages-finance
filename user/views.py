@@ -13,7 +13,13 @@ from decimal import Decimal
 from operator import attrgetter
 from notification.models import Notification
 from utils.email import SendMail
+from utils.n3data import DataAPI, DATA_PLANS
+import uuid
+import decimal
+import hashlib
 from .serializers import (
+    BuyAirtimeSerializer,
+    BuyDataSerializer,
     UserActivitiesSerializer,
     UserDashboardSerializer,
     InvestmentPlanSerializer,
@@ -21,6 +27,7 @@ from .serializers import (
     UpdateDP,
     NewSavingsSerializer,
     UserDividendsSerializer,
+    DataHistorySerializer,
     UserSavingsSerializers,
     AmountPinSerializer,
     CoporativeDashboardSerializer,
@@ -47,7 +54,8 @@ from .models import (Activities,
                      BANK_LISTS,
                      Loan,
                      InvestmentCancel,
-                     SavingsCancel
+                     SavingsCancel,
+                     DataAndAirtimeActivity
                      )
 from utils.pagination import CustomPagination
 from django.db import transaction
@@ -56,7 +64,6 @@ from datetime import datetime
 from django.utils.encoding import smart_bytes, smart_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 # Create your views here.
-
 
 class UserActivitiesView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -71,15 +78,16 @@ class UserActivitiesView(generics.GenericAPIView):
             user=user).order_by("-created_at")
         coporative_activities_qs = CoporativeActivities.objects.filter(
             user_coop__user=user).order_by("-created_at")
+        data_activities_qs = DataAndAirtimeActivity.objects.filter(
+            user=user).order_by("-created_at")
         transactions_qs = Transaction.objects.filter(user=user).order_by("-created_at")
 
         combined_qs = sorted(
             chain(activities_qs, savings_activities_qs,
-                  coporative_activities_qs, transactions_qs),
+                  coporative_activities_qs, transactions_qs, data_activities_qs),
             key=attrgetter('created_at'),
             reverse=True
         )
-
         page = self.paginate_queryset(combined_qs)
         if page is not None:
             serializer = self.serializer_class(page, many=True)
@@ -852,6 +860,9 @@ class UserRepayLoan(generics.GenericAPIView):
 class Get_Banks(views.APIView):
     def get(self, request):
         return Response(data=BANK_LISTS, status=status.HTTP_200_OK)
+class Get_Data_plans(views.APIView):
+    def get(self, request):
+        return Response(data=DATA_PLANS, status=status.HTTP_200_OK)
 
 # class UserDividendsView(generics.GenericAPIView):
 #     permission_classes = [permissions.IsAuthenticated]
@@ -911,6 +922,87 @@ class LiquidateLoan(generics.GenericAPIView):
 
         return Response(data={"message": "All repayments marked as paid"}, status=status.HTTP_200_OK)
 
+class BuyAirtime(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class =  BuyAirtimeSerializer
+    def post(self, request):
+        user = request.user
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        pin = serializer.validated_data["pin"]
+        amount = serializer.validated_data["amount"]
+        phone = serializer.validated_data["phone"]
+        network = serializer.validated_data["network"].upper()
+        if pin != user.pin:
+            return Response({"message": "Invalid pin"}, status=status.HTTP_401_UNAUTHORIZED)
+        if user.wallet_balance < amount:
+            return Response({"message": "Insufficient fund"}, status=status.HTTP_400_BAD_REQUEST)
+        reference_number = hashlib.sha256(str(uuid.uuid4()).encode()).hexdigest()[:12]
+        reference_code = f"AIRTIME_{reference_number}"
+        data = {
+            "amount":amount,
+            "number": phone,
+            "reference": reference_code,
+            "network": network
+        }
+        buy_status, buy_response = DataAPI.buy_airtime(data)
+        if not buy_status:
+            return Response(data={"message": buy_response}, status= status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            user.wallet_balance -= amount
+            user.save()
+            DataAndAirtimeActivity.objects.create(
+                user=user,
+                amount=amount,
+                balance=user.wallet_balance,
+                network=network,
+                number=phone,
+                type="AIRTIME",
+                refrence_code=reference_code,
+                package= f'{network}-N{amount}-AIRTIME'
+                )
+            return Response(data={"message": "success"}, status=status.HTTP_200_OK)
+class BuyData(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class =  BuyDataSerializer
+    def post(self, request):
+        user = request.user
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        pin = serializer.validated_data["pin"]
+        plan_id = str(serializer.validated_data["plan"])
+        phone = serializer.validated_data["phone"]
+        if pin != user.pin:
+            return Response({"message": "Invalid pin"}, status=status.HTTP_401_UNAUTHORIZED)
+        selected_plan = next((plan for plan in DATA_PLANS if plan["plan_id"] == plan_id), None)
+        if not selected_plan:
+            return Response({"message": "Invalid data plan selected"}, status=status.HTTP_401_UNAUTHORIZED)
+        amount = decimal.Decimal(selected_plan["amount"])
+        if decimal.Decimal(user.wallet_balance) < amount:
+            return Response({"message": "Insufficient fund"}, status=status.HTTP_400_BAD_REQUEST)
+        reference_number = hashlib.sha256(str(uuid.uuid4()).encode()).hexdigest()[:12]
+        reference_code = f"Data_{reference_number}"
+        data = {
+            "plan_id":plan_id,
+            "number": phone,
+            "reference": reference_code
+        }
+        buy_status, buy_response = DataAPI.buy_data(data)
+        if not buy_status:
+            return Response(data={"message": buy_response}, status= status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            user.wallet_balance -= amount
+            user.save()
+            DataAndAirtimeActivity.objects.create(
+                user=user,
+                amount=amount,
+                balance=user.wallet_balance,
+                network=selected_plan["network"],
+                number=phone,
+                refrence_code=reference_code,
+                package= f'{selected_plan["plan_name"]}-N{amount}-{selected_plan["plan_day"]}'
+                )
+            return Response(data={"message": "success"}, status=status.HTTP_200_OK)
 
 
 class GuarantorResponse(views.APIView):
@@ -967,21 +1059,14 @@ class GuarantorResponse(views.APIView):
             loan.save()
         return Response(data={"msg":"success"})
 
-
-# from django.http import JsonResponse
-# def test_email(request):
-#     data = {}
-    # all_loans = Loan.objects.all()
-    # for l in all_loans:
-    #     l.populate_repayment_details()
-    #     l.balance = l.amount + l.calculate_total_interest()
-    #     l.save()
-    # data["amount"] = 5000
-    # data["duration"] = 6
-    # data["user_name"] = "Akinola Samson"
-    # data["guarantor_name"] = "Oluwa Popsicool"
-    # data["email"] = "akinolasamson1234@gmail.com"
-    # data["accept_link"]= "https://fb.com"
-    # data["reject_link"]= "https://fb.com"
-    # SendMail.send_loan_notification_email(data)
-    # return JsonResponse({"msg":"success"})
+class DataHistory(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class =  DataHistorySerializer
+    def get(self, request):
+        queryset = self.get_queryset()
+        serializer = self.serializer_class(queryset,many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        user = self.request.user
+        queryset = DataAndAirtimeActivity.objects.filter(user=user).order_by("-created_at")
+        return queryset
