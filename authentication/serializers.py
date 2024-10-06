@@ -212,9 +212,9 @@ class LoginSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         email = attrs.get('email', '')
         password = attrs.get('password', '')
-        valid_user = User.objects.filter(email=email).first()
+        valid_user = User.objects.filter(email=email.lower()).first()
         if not valid_user:
-            valid_user = User.objects.filter(phone=email).first()
+            valid_user = User.objects.filter(phone=email.lower()).first()
             if valid_user:
                 email = valid_user.email
         if not valid_user:
