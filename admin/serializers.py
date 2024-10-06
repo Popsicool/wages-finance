@@ -49,7 +49,7 @@ class AdminLoginSerializer(serializers.Serializer):
             raise AuthenticationFailed('invalid credentials, try again')
         if not valid_user.is_active:
             raise AuthenticationFailed('account disabled, contact super admin')
-        user = auth.authenticate(email=email, password=password)
+        user = auth.authenticate(email=email.lower(), password=password)
         if not user:
             raise AuthenticationFailed('invalid credentials, try again')
         if not user.is_staff:

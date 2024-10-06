@@ -70,6 +70,7 @@ class SignupSerializer(serializers.ModelSerializer):
         while User.objects.filter(referal_code = random_string).first():
             random_string = ''.join(random.choice(all_chars) for _ in range(6))
         validated_data["referal_code"] = random_string.upper()
+        validated_data["email"] = validated_data["email"].lower()
         return User.objects.create_user(**validated_data)
 
 class RequestPasswordResetPhoneSerializer(serializers.Serializer):
@@ -220,7 +221,7 @@ class LoginSerializer(serializers.ModelSerializer):
             raise AuthenticationFailed('Invalid credentials, try again')
         if not valid_user.is_active:
             raise AuthenticationFailed('Account disabled, contact admin')
-        user = auth.authenticate(email=email, password=password)
+        user = auth.authenticate(email=email.lower(), password=password)
         if not user:
             raise AuthenticationFailed('Invalid credentials, try again')
         if user.is_staff:

@@ -168,7 +168,7 @@ class AdminInviteView(generics.GenericAPIView):
 
         password = generate_random_password()
         new_admin = User.objects.create(
-            email=email, firstname=first_name, lastname=last_name, role="ADMIN")
+            email=email.lower(), firstname=first_name, lastname=last_name, role="ADMIN")
         new_admin.set_password(password)
         new_admin.is_staff = True
         new_admin.is_verified = True
