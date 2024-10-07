@@ -139,6 +139,7 @@ class OneTimeSubscription(generics.GenericAPIView):
         with transaction.atomic():
             user.is_subscribed = True
             user.wallet_balance -= 5000
+            user.wages_point += 5
             mem_id = 'WF-' + ''.join(random.sample('0123456789', 9))
             new_coop = CoporativeMembership.objects.create(
                 user=user, membership_id=mem_id)
@@ -150,6 +151,7 @@ class OneTimeSubscription(generics.GenericAPIView):
             if referal:
                 referal.referal_balance += 2000
                 referal.total_referal_balance += 2000
+                referal.wages_point += 5
                 ref_notification = Notification.objects.create(
                     user=referal,
                     title="Referal bonus",
@@ -281,6 +283,7 @@ class FundCoporative(generics.GenericAPIView):
             if user.wallet_balance < amount:
                 return Response(data={"message": "Insufficent amount in wallet"}, status=status.HTTP_403_FORBIDDEN)
             user.wallet_balance -= amount
+            user.wages_point += 5
             user.save()
             coop.balance += amount
             current_date = date.today()
@@ -326,6 +329,7 @@ class FundSavings(generics.GenericAPIView):
             if user.wallet_balance < amount:
                 return Response(data={"message": "Insufficent amount in wallet"}, status=status.HTTP_403_FORBIDDEN)
             user.wallet_balance -= amount
+            user.wages_point += 5
             user.save()
             savings.mark_payment_as_made(timezone.now(), int(amount))
             savings.save()
@@ -625,6 +629,7 @@ class UserInvest(generics.GenericAPIView):
             if not incr:
                 investment.investors += 1
             user.wallet_balance -= amount
+            user.wages_point += 5
             user.save()
             due_date = date.today() + relativedelta(months=investment.duration)
             new_user_investment = UserInvestments.objects.create(
@@ -831,6 +836,7 @@ class UserRepayLoan(generics.GenericAPIView):
         # Process the repayment
         with transaction.atomic():
             user.wallet_balance -= total_amount
+            user.wages_point += 5
             
             for index in repayment_indices:
                 key = keys[index - 1]  # -1 for zero-based index
@@ -913,6 +919,7 @@ class LiquidateLoan(generics.GenericAPIView):
             loan.balance = 0
             # Deduct the total amount from the user's wallet balance
             user.wallet_balance -= total_amount_due
+            user.wages_point += 5
             # Log the activity
             Activities.objects.create(title="Loan liquidation", amount=total_amount_due, user=user)
 

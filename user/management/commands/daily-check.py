@@ -73,6 +73,7 @@ class Command(BaseCommand):
                         payment_datetime = timezone.now()
                         saving.mark_payment_as_made(payment_datetime, remaining_amount)
                         user.wallet_balance -= remaining_amount
+                        user.wages_point += 5
                         user.save()
                         ttday = datetime.now().date()
                         days_to_withdrawal = (saving.withdrawal_date - ttday).days
@@ -190,6 +191,7 @@ class Command(BaseCommand):
                             if user.wallet_balance >= amount_due:
                                 # Deduct the amount from the user's wallet
                                 user.wallet_balance -= amount_due
+                                user.wages_point += 5
                                 # Update the repayment details to mark this payment as paid
                                 repayment_details[today_str]['paid_status'] = True
                                 loan.repayment_details = repayment_details
