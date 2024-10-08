@@ -1085,16 +1085,3 @@ class DataHistory(views.APIView):
         user = self.request.user
         queryset = DataAndAirtimeActivity.objects.filter(user=user).order_by("-created_at")
         return queryset
-
-
-from django.http import JsonResponse
-def update_savings(request):
-    all_savings = UserSavings.objects.filter(type__in = ["CAR-PURCHASE", "GADGET-PURCHASE"])
-    for svg in all_savings:
-        if svg.type == "CAR-PURCHASE":
-            svg.type = "CHILDREN"
-        else:
-            svg.type = "RETIREMENT"
-        svg.save()
-    return JsonResponse({"msg":"success"})
-

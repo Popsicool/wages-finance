@@ -50,6 +50,4 @@ urlpatterns = [
          name='data_history'),
 #     path('test_socket/<id>/', test_socket,
 #          name='verify_reset_pin'),
-#     path('upd/', update_savings,
-#          name='verify_reset_pin'),
 ]
