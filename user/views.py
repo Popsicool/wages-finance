@@ -210,7 +210,7 @@ class NewSavingsView(generics.GenericAPIView):
         if id not in [1, 2, 3, 4, 5]:
             return Response(data={"message": "invalid option"}, status=status.HTTP_400_BAD_REQUEST)
         
-        option_types = {1: "BIRTHDAY", 2: "CAR-PURCHASE", 3: "VACATION", 4: "GADGET-PURCHASE", 5: "MISCELLANEOUS"}
+        option_types = {1: "BIRTHDAY", 2: "CHILDREN", 3: "VACATION", 4: "RETIREMENT", 5: "MISCELLANEOUS"}
         user_option = option_types.get(id)
         user = request.user
         savings_filter = UserSavings.objects.filter(user=user, type=user_option).first()
@@ -225,6 +225,14 @@ class NewSavingsView(generics.GenericAPIView):
             if not savings_filter:
                 if not serializer.validated_data.get("frequency"):
                     return Response(data={"message": "frequency is compulsory"}, status=status.HTTP_400_BAD_REQUEST)
+                frequency = serializer.validated_data.get("frequency")
+                if id in [2, 4] and frequency != "MONTHLY":
+                     return Response(data={"message": "Only monthly savings is available for this plan"}, status=status.HTTP_400_BAD_REQUEST)
+                duration = serializer.validated_data.get("duration")
+                if id == 2 and (duration < 24 or duration > 60):
+                     return Response(data={"message": "Selected plan is only available for 20 to 60 months"}, status=status.HTTP_400_BAD_REQUEST)
+                if id == 4 and (duration != 60):
+                     return Response(data={"message": "Selected plan is only available for 60 months"}, status=status.HTTP_400_BAD_REQUEST)
                 new_savings = serializer.save(user=user, type=user_option)
                 new_savings.calculate_payment_details()
                 new_savings.save()
@@ -309,8 +317,8 @@ class FundSavings(generics.GenericAPIView):
         if id not in [1, 2, 3, 4, 5]:
             return Response(data={"message": "invalid option"}, status=status.HTTP_400_BAD_REQUEST)
 
-        option_types = {1: "BIRTHDAY", 2: "CAR-PURCHASE",
-                        3: "VACATION", 4: "GADGET-PURCHASE", 5: "MISCELLANEOUS"}
+        option_types = {1: "BIRTHDAY", 2: "CHILDREN",
+                        3: "VACATION", 4: "RETIREMENT", 5: "MISCELLANEOUS"}
         user_option = option_types.get(id)
         savings = UserSavings.objects.filter(
             user=user, type=user_option).first()
@@ -350,8 +358,8 @@ class CancelSavings(generics.GenericAPIView):
         if id not in [1, 2, 3, 4, 5]:
             return Response(data={"message": "invalid option"}, status=status.HTTP_400_BAD_REQUEST)
 
-        option_types = {1: "BIRTHDAY", 2: "CAR-PURCHASE",
-                        3: "VACATION", 4: "GADGET-PURCHASE", 5: "MISCELLANEOUS"}
+        option_types = {1: "BIRTHDAY", 2: "CHILDREN",
+                        3: "VACATION", 4: "RETIREMENT", 5: "MISCELLANEOUS"}
         serializer = self.serializer_class(data = request.data)
         serializer.is_valid(raise_exception=True)
         pin = serializer.validated_data["pin"]
@@ -1077,3 +1085,16 @@ class DataHistory(views.APIView):
         user = self.request.user
         queryset = DataAndAirtimeActivity.objects.filter(user=user).order_by("-created_at")
         return queryset
+
+
+from django.http import JsonResponse
+def update_savings(request):
+    all_savings = UserSavings.objects.filter(type__in = ["CAR-PURCHASE", "GADGET-PURCHASE"])
+    for svg in all_savings:
+        if svg.type == "CAR-PURCHASE":
+            svg.type = "CHILDREN"
+        else:
+            svg.type = "RETIREMENT"
+        svg.save()
+    return JsonResponse({"msg":"success"})
+

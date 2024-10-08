@@ -289,11 +289,18 @@ class InvestmentCancel(models.Model):
 
 SAVINGS_TYPES = [
     ("BIRTHDAY", "Birthday"),
-    ("CAR-PURCHASE", "Car purchase"),
+    ("CHILDREN", "Children"),
     ("VACATION", "Vacations"),
-    ("GADGET-PURCHASE", "Gadget purchase"),
+    ("RETIREMENT", "Retirement"),
     ("MISCELLANEOUS", "Miscellaneous")
 ]
+# SAVINGS_TYPES = [
+#     ("BIRTHDAY", "Birthday"),
+#     ("CAR-PURCHASE", "Car purchase"),
+#     ("VACATION", "Vacations"),
+#     ("GADGET-PURCHASE", "Gadget purchase"),
+#     ("MISCELLANEOUS", "Miscellaneous")
+# ]
 
 
 class UserSavings(models.Model):

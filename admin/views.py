@@ -784,7 +784,7 @@ class SavingsType(generics.GenericAPIView):
         if id not in [1, 2, 3, 4, 5]:
             return Response(data={"message": "invalid option"}, status=status.HTTP_400_BAD_REQUEST)
         
-        option_types = {1: "BIRTHDAY", 2: "CAR-PURCHASE", 3: "VACATION", 4: "GADGET-PURCHASE", 5: "MISCELLANEOUS"}
+        option_types = {1: "BIRTHDAY", 2: "CHILDREN", 3: "VACATION", 4: "RETIREMENT", 5: "MISCELLANEOUS"}
         user_option = option_types.get(id)
         queryset = UserSavings.objects.filter(
             type=user_option, withdrawal_date__isnull = False).order_by("-start_date")
