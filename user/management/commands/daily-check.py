@@ -77,7 +77,7 @@ class Command(BaseCommand):
                         user.save()
                         ttday = datetime.now().date()
                         days_to_withdrawal = (saving.withdrawal_date - ttday).days
-                        interest = days_to_withdrawal * 0.000329 * remaining_amount
+                        interest = days_to_withdrawal * 0.00041096 * remaining_amount
 
                         # Log the savings activity
                         new_savings_activity = SavingsActivities.objects.create(

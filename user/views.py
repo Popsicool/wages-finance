@@ -343,7 +343,7 @@ class FundSavings(generics.GenericAPIView):
             savings.save()
             ttday = datetime.now().date()
             days_to_withdrawal = (savings.withdrawal_date - ttday).days
-            interest = days_to_withdrawal * 0.000329 * amount
+            interest = days_to_withdrawal * 0.00041096 * amount
             new_savings_activity = SavingsActivities.objects.create(savings=savings, amount=amount,
                                                                     balance = savings.saved, interest=interest,
                                                                     user=user)
@@ -530,9 +530,8 @@ class LoanRequestView(generics.GenericAPIView):
             return Response(data={"message": "Not a member of coporative"}, status=status.HTTP_403_FORBIDDEN)
         now = timezone.now()
 
-        memberships_joined = now - timedelta(days=5)
-        if membership.date_joined >= memberships_joined:
-
+        six_months_ago = now - relativedelta(months=6)
+        if membership.date_joined > six_months_ago:
             return Response(data={"message": "Not up to 6 months as a coporative member"}, status=status.HTTP_403_FORBIDDEN)
         serializer = self.serializer_class(data=request.data)
         active_loan = Loan.objects.filter(user=user, is_active=True).first()
