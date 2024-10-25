@@ -249,13 +249,35 @@ class AdminTransactions(generics.GenericAPIView):
         manual_parameters=[
             openapi.Parameter('type', openapi.IN_QUERY, description='Filter by account status',
                               type=openapi.TYPE_STRING, enum=['withdrawal', 'deposit', 'data'], required=False),
+            openapi.Parameter('start_date', openapi.IN_QUERY,
+                              description='Start date (YYYY-MM-DD)', type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('end_date', openapi.IN_QUERY, description='End date (YYYY-MM-DD)',
+                              type=openapi.TYPE_STRING, required=False),
         ]
     )
     def get(self, request):
         search = request.GET.get("search")
         activity_type  = request.GET.get("type")
+        start_date = self.request.query_params.get('start_date', None)
+        end_date = self.request.query_params.get('end_date', None)
+        today = now()
+        if start_date and not is_valid_date_format(start_date):
+            return Response(data={'error': 'Invalid start date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        if end_date and not is_valid_date_format(end_date):
+            return Response(data={'error': 'Invalid end date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not start_date:
+            start_date = "2024-06-01"
+        start_date = make_aware(datetime.strptime(start_date, '%Y-%m-%d'))
+        start_date = start_date.replace(hour=0, minute=0, second=0)
+        if end_date:
+            end_date = make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
+        end_date = end_date or today
+        end_date += timedelta(days=1)
         transaction_qs = self.get_queryset()
+        transaction_qs = transaction_qs.filter(created_at__range=[start_date, end_date])
         data_qs = DataAndAirtimeActivity.objects.all().order_by('-created_at')
+        data_qs = data_qs.filter(created_at__range=[start_date, end_date])
         if search:
             transaction_qs = transaction_qs.filter(Q(user__firstname__icontains = search) | Q(user__lastname__icontains = search) | Q(user__email__icontains = search))
             data_qs = data_qs.filter(Q(user__firstname__icontains = search) | Q(user__lastname__icontains = search) | Q(user__email__icontains = search))
