@@ -194,9 +194,9 @@ class SetBvnView(generics.GenericAPIView):
         serializer = self.serializer_class(data = request.data)
         serializer.is_valid(raise_exception=True)
         # call safehaven endpoint
-        numn = serializer.validated_data["bvn"]
+        numn = hashlib.sha256(smart_bytes(serializer.validated_data["bvn"])).digest()
         if User.objects.filter(bvn=numn).exists():
-            return Response({"message": "User with this bvn already exist"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Account with this bvn already exist"}, status=status.HTTP_400_BAD_REQUEST)
         data = {'type':"BVN", "number": numn}
         safe_status, resp = safe_initiate(data)
         if safe_status:
@@ -228,8 +228,8 @@ class VerifyBVNView(generics.GenericAPIView):
             return Response(data={"message": verify_message}, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():
             verified_bvn = user_det["nvb"] if verify_message == "VERIFIED" else verify_message["bvn"]
-            user.bvn = verified_bvn
-            user.bvn_verify_details = verify_message
+            user.bvn = hashlib.sha256(smart_bytes(verified_bvn)).digest()
+            user.bvn_verify_details = "BVN has been Verified"
             user.tier = TIERS_CHOICE[2][0]
             user.is_verified = True
             acc_data = {

@@ -183,17 +183,31 @@ class AdminInviteSerializer(serializers.Serializer):
 
 
 class AdminTransactionSerializer(serializers.ModelSerializer):
-    firstname = serializers.CharField(source="user.firstname")
-    email = serializers.EmailField(source="user.email")
-    user_id = serializers.IntegerField(source="user.id")
-    lastname = serializers.CharField(source="user.lastname")
-    phone = serializers.CharField(source="user.phone")
+    firstname = serializers.SerializerMethodField()
+    email = serializers.SerializerMethodField()
+    user_id = serializers.SerializerMethodField()
+    lastname = serializers.SerializerMethodField()
+    phone = serializers.SerializerMethodField()
     withdrawal_details = serializers.SerializerMethodField()
 
     class Meta:
         model = Transaction
         fields = ["id", "firstname", "lastname", "email", "phone","created_at",
                   "amount", "status", "description", "user_id", "type", "withdrawal_details"]
+    def get_firstname(self, obj):
+        return obj.user.firstname if obj.user else "DELETED"
+
+    def get_lastname(self, obj):
+        return obj.user.lastname if obj.user else "ACCOUNT"
+
+    def get_email(self, obj):
+        return obj.user.email if obj.user else ""
+
+    def get_phone(self, obj):
+        return obj.user.phone if obj.user else ""
+
+    def get_user_id(self, obj):
+        return obj.user.id if obj.user else ""
     def get_withdrawal_details(self, obj):
         withdrawal = obj.user_withdrawal_transaction.first()
         if not withdrawal:

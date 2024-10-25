@@ -48,4 +48,4 @@ class Transaction(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.user.firstname} - {self.description} - {self.status}"
+        return f"{self.user.firstname if self.user else 'DELETED ACCOUNT'} - {self.description} - {self.status}"
