@@ -1,7 +1,7 @@
 from rest_framework import (permissions, generics, views, filters)
 from authentication.permissions import IsAdministrator, IsAccountant, IsCustomerSupport, IsLoanManager, IsLoanOfficerOrAccountant, IsAdminStaff
 from rest_framework.response import Response
-from user.models import (User,
+from user.models import (DataAndAirtimeActivity, User,
                          Withdrawal,
                          CoporativeMembership,
                          UserSavings,
@@ -23,6 +23,7 @@ from drf_yasg import openapi
 from utils.pagination import CustomPagination
 from utils.safehaven import safe_name_enquires, send_money
 from datetime import timedelta
+from itertools import chain
 from django.utils.timezone import make_aware
 from .serializers import (
     AdminLoginSerializer,
@@ -66,6 +67,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.db.models import Sum, F, ExpressionWrapper, DecimalField, Subquery, OuterRef
 from datetime import datetime, date
+from operator import attrgetter
 from django.shortcuts import get_object_or_404
 import re
 from django.utils.timezone import now
@@ -242,16 +244,42 @@ class AdminTransactions(generics.GenericAPIView):
     filter_backends = [filters.SearchFilter]
     search_fields = ["user__id", "user__firstname", "user__lastname", "user__email"]
 
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('type', openapi.IN_QUERY, description='Filter by account status',
+                              type=openapi.TYPE_STRING, enum=['withdrawal', 'deposit', 'data'], required=False),
+        ]
+    )
     def get(self, request):
         search = request.GET.get("search")
-        queryset = self.get_queryset()
+        activity_type  = request.GET.get("type")
+        transaction_qs = self.get_queryset()
+        data_qs = DataAndAirtimeActivity.objects.all().order_by('-created_at')
         if search:
-            queryset = queryset.filter(Q(user__firstname__icontains = search) | Q(user__lastname__icontains = search) | Q(user__email__icontains = search))
-        page = self.paginate_queryset(queryset)
+            transaction_qs = transaction_qs.filter(Q(user__firstname__icontains = search) | Q(user__lastname__icontains = search) | Q(user__email__icontains = search))
+            data_qs = data_qs.filter(Q(user__firstname__icontains = search) | Q(user__lastname__icontains = search) | Q(user__email__icontains = search))
+        if activity_type:
+            activity_type = activity_type.strip().lower()
+            if activity_type == 'withdrawal':
+                transaction_qs = transaction_qs.filter(type="WITHDRAWAL")
+                data_qs = []
+            elif activity_type == 'deposit':
+                transaction_qs = transaction_qs.filter(type="WALLET-CREDIT")
+                data_qs = []
+            elif activity_type == 'data':
+                transaction_qs = []
+        combined_qs = sorted(
+            chain(transaction_qs,
+                  data_qs),
+            key=attrgetter('created_at'),
+            reverse=True
+        )
+        page = self.paginate_queryset(combined_qs)
         if page is not None:
             serializer = self.serializer_class(page, many=True)
             return self.get_paginated_response(serializer.data)
-        serializer = self.serializer_class(queryset, many=True)
+        serializer = self.serializer_class(combined_qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def get_queryset(self):

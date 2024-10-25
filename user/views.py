@@ -488,7 +488,7 @@ class WithdrawalView(generics.GenericAPIView):
             new_transaction = Transaction.objects.create(
                 user = user,
                 amount = amount,
-                type = "Withdrawal",
+                type = "WITHDRAWAL",
                 description = f'N{amount} withdrawal',
                 source = f'{matching_bank["name"]}/{account_number}'
             )

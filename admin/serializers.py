@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.db.models import Sum, Count, F
 from user.models import (
+    DataAndAirtimeActivity,
     InvestmentPlan,
     User,
     Withdrawal,
@@ -182,7 +183,8 @@ class AdminInviteSerializer(serializers.Serializer):
         choices=["Administrator", "Accountant", "Customer-support", "Loan-manager"], required=False)
 
 
-class AdminTransactionSerializer(serializers.ModelSerializer):
+class AdminTransactionSerializer(serializers.Serializer):
+    id = serializers.SerializerMethodField()
     firstname = serializers.SerializerMethodField()
     email = serializers.SerializerMethodField()
     user_id = serializers.SerializerMethodField()
@@ -190,35 +192,51 @@ class AdminTransactionSerializer(serializers.ModelSerializer):
     phone = serializers.SerializerMethodField()
     withdrawal_details = serializers.SerializerMethodField()
 
-    class Meta:
-        model = Transaction
-        fields = ["id", "firstname", "lastname", "email", "phone","created_at",
-                  "amount", "status", "description", "user_id", "type", "withdrawal_details"]
-    def get_firstname(self, obj):
-        return obj.user.firstname if obj.user else "DELETED"
-
-    def get_lastname(self, obj):
-        return obj.user.lastname if obj.user else "ACCOUNT"
-
-    def get_email(self, obj):
-        return obj.user.email if obj.user else ""
-
-    def get_phone(self, obj):
-        return obj.user.phone if obj.user else ""
-
-    def get_user_id(self, obj):
-        return obj.user.id if obj.user else ""
-    def get_withdrawal_details(self, obj):
-        withdrawal = obj.user_withdrawal_transaction.first()
-        if not withdrawal:
-            return None
-        details = {
-            "id": withdrawal.id,
-            "amount":withdrawal.amount,
-            "bank_name": withdrawal.bank_name,
-            "account_number": withdrawal.account_number
-        }
-        return details
+    # class Meta:
+    #     model = Transaction
+    #     fields = ["id", "firstname", "lastname", "email", "phone","created_at",
+    #               "amount", "status", "description", "user_id", "type", "withdrawal_details"]
+    def to_representation(self, instance):
+        if isinstance(instance, Transaction):
+            withdrawal = instance.user_withdrawal_transaction.first()
+            if not withdrawal:
+                details = None
+            else:
+                details = {
+                    "id": withdrawal.id,
+                    "amount":withdrawal.amount,
+                    "bank_name": withdrawal.bank_name,
+                    "account_number": withdrawal.account_number
+                }
+            return {
+                "id": instance.id,
+                "firstname": instance.user.firstname if instance.user else "DELETED",
+                "lastname": instance.user.lastname if instance.user else "ACCOUNT",
+                "email":instance.user.email if instance.user else "",
+                "phone": instance.user.phone if instance.user else "",
+                "created_at": instance.created_at,
+                "amount":instance.amount,
+                "status":instance.status,
+                "description": instance.description,
+                "user_id": instance.user.id if instance.user else "",
+                "type": instance.type,
+                "withdrawal_details": details
+            }
+        elif isinstance(instance, DataAndAirtimeActivity):
+            return {
+                "id": instance.id,
+                "firstname": instance.user.firstname,
+                "lastname": instance.user.lastname,
+                "email":instance.user.email,
+                "phone": instance.user.phone,
+                "created_at": instance.created_at,
+                "amount":instance.amount,
+                "status":"SUCCESS",
+                "description": instance.package,
+                "user_id": instance.user.id,
+                "type": "DATA_AND_AIRTIME",
+                "withdrawal_details": None
+            }
 
 class AdminCreateInvestmentSerializer(serializers.ModelSerializer):
     title = serializers.CharField(max_length=255)
