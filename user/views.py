@@ -1014,7 +1014,7 @@ class BuyData(generics.GenericAPIView):
                 network=selected_plan["network"],
                 number=phone,
                 refrence_code=reference_code,
-                package= f'{selected_plan["plan_name"]}-N{amount}-{selected_plan["plan_day"]}'
+                package= f'{selected_plan["network"]}-{selected_plan["plan_name"]}-N{amount}-{selected_plan["plan_day"]}'
                 )
             return Response(data={"message": "success"}, status=status.HTTP_200_OK)
 

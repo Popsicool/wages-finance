@@ -456,7 +456,9 @@ class GetTeamMembers(views.APIView):
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
     def get_queryset(self):
-        status  = self.request.query_params.get("status").strip().lower()
+        status  = self.request.query_params.get("status")
+        if status:
+            status = status.strip().lower()
         all_admins = User.objects.filter(
             role="ADMIN").order_by('-created_at')
         if status == "inactive":
